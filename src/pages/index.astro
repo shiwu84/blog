@@ -25,7 +25,7 @@ const recentPosts = sortedPosts.filter(({ data }) => !data.featured);
   <main id="main-content" data-layout="index">
     <section id="hero" class="pt-8 pb-6">
       <h1 class="my-4 inline-block text-4xl font-bold sm:my-8 sm:text-5xl">
-        青简
+        欢迎
       </h1>
       <a
         target="_blank"
@@ -42,7 +42,12 @@ const recentPosts = sortedPosts.filter(({ data }) => !data.featured);
         <span class="sr-only">RSS Feed</span>
       </a>
 
-      <p>持续记录，慢慢成长。</p>
+      <p style="text-indent:2em;">
+        这里是我整理自己思考的角落。像在时间的暗室里冲洗底片，将日常学习中那些显影的困惑与领悟，逐帧存留在意念的简牍上。
+      </p>
+      <p style="text-indent:2em;">
+        这些字痕是是思维的锚点，也是迷途时可供返回的坐标。光阴流过，会为这些私人记录覆上一层温润的青色，如同潮水在礁石上留下缓慢的刻度。这个过程本身，便已足够完整。
+      </p>
       {
         // only display if at least one social link is enabled
         SOCIALS.length > 0 && (
