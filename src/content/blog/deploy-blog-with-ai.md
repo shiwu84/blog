@@ -13,7 +13,7 @@ tags:
   - DeepSeek Harness
 ---
 
-十月十七号下午，我先清理了服务器上用 Docker 部署的 memos 和 vaultwarden，顺手把里面的笔记导出到了 Obsidian。收拾完这些，才开始折腾这个博客的部署。
+十月十七号下午，我先清理了服务器上用 Docker 部署的 memos 和 vaultwarden，顺手把 memos 里的笔记导出到了 Obsidian。收拾完这些，才开始折腾这个博客的部署。
 
 主题是我自己挑的：对比了 [Ink](https://astro.build/themes/details/ink/)、[whono](https://astro.build/themes/details/astro-whono/) 和 [LogFlow](https://astro.build/themes/details/logflow/) 之后，最后选了 LogFlow——灰色调、衬线正文，看着舒服。
 
