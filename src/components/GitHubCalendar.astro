@@ -17,7 +17,6 @@ const levelForCount = (count: number) => (
   count <= 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : count <= 8 ? 3 : 4
 );
 
-// 点阵尺寸由 CSS 变量控制：桌面 11px、平板 9px、手机 8px，保证不裁切且清晰。
 const cells = days.map((day, index) => {
   const position = leadingDays + index;
   return { ...day, column: Math.floor(position / 7) + 1, row: (position % 7) + 2 };
@@ -36,31 +35,36 @@ for (const cell of cells) {
 }
 const weekdayLabels = [{ label: "一", row: 2 }, { label: "三", row: 4 }, { label: "五", row: 6 }];
 const weeks = cells.at(-1)?.column ?? 1;
-const rowTemplate = "1.05rem repeat(7, var(--cal-cell))";
+
+// 尺寸全部交给 CSS 变量：桌面 11px 格子，窄屏按容器宽度自动缩放，保证整张图完整显示。
 const fieldStyle = {
   gridTemplateColumns: `repeat(${weeks}, var(--cal-cell))`,
-  gridTemplateRows: rowTemplate,
-  columnGap: "var(--cal-col-gap)",
-  rowGap: "var(--cal-row-gap)",
+  gridTemplateRows: `var(--cal-head) repeat(7, var(--cal-cell))`,
+  columnGap: "var(--cal-gap-x)",
+  rowGap: "var(--cal-gap-y)",
 };
-const rulerStyle = { gridTemplateRows: rowTemplate, rowGap: "var(--cal-row-gap)" };
-const cellStyle = { width: "var(--cal-cell)", height: "var(--cal-cell)" };
+const rulerStyle = { gridTemplateRows: `var(--cal-head) repeat(7, var(--cal-cell))`, rowGap: "var(--cal-gap-y)" };
+const legendCellStyle = { width: "max(6px, var(--cal-cell))", height: "max(6px, var(--cal-cell))" };
 ---
 
-<figure class="contrib-calendar grid min-w-0 justify-items-center gap-2" aria-label={`共 ${totalCount} 次贡献`}>
-  <div class="flex w-full items-start gap-2">
+<figure
+  class="contrib-calendar grid min-w-0 justify-items-center gap-2"
+  style={`--cal-weeks: ${weeks}`}
+  aria-label={`共 ${totalCount} 次贡献`}
+>
+  <div class="cal-row flex w-full items-start gap-2">
     {/* 星期标尺：固定在点阵左侧，不参与点阵宽度与居中计算 */}
-    <ol class="grid shrink-0 justify-items-end text-label leading-none text-subtle" style={{ ...rulerStyle, width: "1.25rem" }} aria-hidden="true">
+    <ol class="cal-weekdays grid shrink-0 justify-items-end leading-none text-subtle" style={{ ...rulerStyle, width: "1.25rem" }} aria-hidden="true">
       {weekdayLabels.map(({ label, row }) => (
         <li class="flex items-center" style={{ gridRow: row }}>{label}</li>
       ))}
     </ol>
-    {/* 点阵主体：窄屏整体横向滚动，宽屏以自身宽度居中 */}
+    {/* 点阵主体：宽度由 CSS 变量计算，任何屏幕都完整显示；保留横向滚动作为极端情况的兜底 */}
     <div class="min-w-0 flex-1 overflow-x-auto [scrollbar-width:thin]">
       <div class="mx-auto grid w-max gap-2">
-        <ol class="grid" style={fieldStyle}>
+        <ol class="cal-field grid" style={fieldStyle}>
           {monthLabels.map(({ label, column }) => (
-            <li class="flex items-center whitespace-nowrap text-label leading-none text-subtle" style={{ gridColumn: column, gridRow: 1 }} aria-hidden="true">{label}</li>
+            <li class="cal-month-label flex items-center whitespace-nowrap leading-none text-subtle" style={{ gridColumn: column, gridRow: 1 }} aria-hidden="true">{label}</li>
           ))}
           {cells.map((cell) => (
             <li
@@ -72,9 +76,9 @@ const cellStyle = { width: "var(--cal-cell)", height: "var(--cal-cell)" };
             </li>
           ))}
         </ol>
-        <figcaption class="flex items-center justify-end gap-1.5 text-label text-subtle" aria-label="贡献强度：少到多">
+        <figcaption class="cal-legend flex items-center justify-end gap-1.5 leading-none text-subtle" aria-label="贡献强度：少到多">
           少
-          {levelClasses.map((levelClass) => <i class:list={["inline-block rounded-tile", levelClass]} style={cellStyle} aria-hidden="true" />)}
+          {levelClasses.map((levelClass) => <i class:list={["inline-block rounded-tile", levelClass]} style={legendCellStyle} aria-hidden="true" />)}
           多
         </figcaption>
       </div>
@@ -84,26 +88,63 @@ const cellStyle = { width: "var(--cal-cell)", height: "var(--cal-cell)" };
 
 <style>
   .contrib-calendar {
-    /* 点阵清晰度优先：桌面使用 11px 整像素格子。 */
+    container-type: inline-size;
+  }
+
+  .cal-weekdays,
+  .cal-month-label,
+  .cal-legend {
+    font-size: var(--cal-label-size);
+  }
+
+  .cal-row {
+    --cal-gap-x: 2px;
+    --cal-gap-y: 2px;
+    --cal-head: 1.05rem;
+    /* 兜底尺寸；支持容器查询时会用下面的自适应计算覆盖 */
     --cal-cell: 11px;
-    --cal-col-gap: 2px;
-    --cal-row-gap: 2px;
+    /* 标签字号随格子缩放，避免窄屏上月份文字互相重叠 */
+    --cal-label-size: min(0.75rem, calc(var(--cal-cell) + 2px));
   }
 
-  @media (max-width: 800px) {
-    .contrib-calendar {
-      --cal-cell: 9px;
+  @supports (container-type: inline-size) {
+    .cal-row {
+      /* 可用宽度 = 容器宽度 - 星期标尺 - 间距；再均分给 54 周。上限 11px。 */
+      --cal-cell: min(
+        11px,
+        calc((100cqw - 1.75rem - (var(--cal-weeks) - 1) * var(--cal-gap-x)) / var(--cal-weeks))
+      );
     }
-  }
 
-  @media (max-width: 680px) {
-    .contrib-calendar {
-      --cal-cell: 8px;
+    /* 窄屏：隐藏标尺，让点阵占满整行宽度，保证完整显示且尽量大 */
+    @container (max-width: 560px) {
+      .cal-row {
+        --cal-gap-x: 1px;
+        --cal-gap-y: 1px;
+        --cal-head: 0px;
+        --cal-cell: min(
+          11px,
+          calc((100cqw - (var(--cal-weeks) - 1) * var(--cal-gap-x)) / var(--cal-weeks))
+        );
+      }
+
+      .cal-row {
+        gap: 0;
+      }
+
+      .cal-weekdays,
+      .cal-month-label {
+        display: none;
+      }
+
+      .cal-legend {
+        font-size: 10px;
+      }
     }
   }
 
   .contrib-cell {
-    transition: outline-color .15s ease, transform .15s ease;
+    transition: outline-color .15s ease;
   }
 
   .contrib-cell:hover {
