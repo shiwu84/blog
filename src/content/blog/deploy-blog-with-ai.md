@@ -157,12 +157,11 @@ sort -u -o ~/.ssh/known_hosts ~/.ssh/known_hosts
 
 ## 现在的工作流
 
-日常发布就三步，而且没有 `git add` 这一步。我用的是 Jujutsu（jj）而不是 git：jj 会把你正在改的内容自动当成一个提交，所以改完只要描述一下、开个新的 change、再推上去就行：
+日常发布就两步，而且没有 `git add` 这一步。我用的是 Jujutsu（jj）而不是 git——它会把你正在改的内容自动当成一个提交，所以改完之后，直接让 AI 跑这两句：
 
 ```bash
-jj describe -m "新文章"
-jj new
-jj git push --bookmark main
+jj commit -m "新文章"
+jj git push
 ```
 
 GitHub Actions 看的是远端分支上的 push，用 jj 推上去一样会触发构建。

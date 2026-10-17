@@ -135,9 +135,8 @@ flowchart TD
 正式站点在自有 Ubuntu 服务器上，由 Caddy 托管静态文件并自动申请 HTTPS，Cloudflare 负责 DNS 和 CDN。日常发布流程：
 
 ```bash
-jj describe -m "新文章"   # 描述当前改动
-jj new                    # 开始下一个 change
-jj git push --bookmark main
+jj commit -m "新文章"   # 提交当前改动
+jj git push             # 推送 main 书签
 ```
 
 推送后由 GitHub Actions 自动完成构建和部署：
