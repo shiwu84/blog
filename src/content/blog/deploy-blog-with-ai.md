@@ -12,7 +12,7 @@ tags:
   - DeepSeek Harness
 ---
 
-十月十七号下午，我先清理了服务器上用 Docker 部署的 memos 和 vaultwarden，然后才开始折腾这个博客。
+十月十七号下午，我先清理了服务器上用 Docker 部署的 memos 和 vaultwarden，顺手把里面的笔记导出到了 Obsidian。收拾完这些，才开始折腾这个博客。
 
 主题是我自己挑的。翻了一圈 Astro 博客主题，最后选了 LogFlow Theme——灰色调、衬线正文，看着舒服。
 
