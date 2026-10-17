@@ -35,3 +35,6 @@ pnpm-debug.log*
 
 # astro theme submission assets (exported locally)
 astro-theme-images/
+
+# 本地敏感文件（SSH 推送密钥等）
+.local/
