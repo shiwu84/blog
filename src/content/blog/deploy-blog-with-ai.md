@@ -45,7 +45,7 @@ Process completed with exit code 255.
 
 ```mermaid
 flowchart TD
-    A["本地写 Markdown"] -->|git push| B["GitHub Actions"]
+    A["本地写 Markdown"] -->|jj git push| B["GitHub Actions"]
     B --> C["npm ci / astro check / astro build"]
     C --> D["上传 dist 制品"]
     D -->|rsync over SSH| E["Ubuntu 24.04 服务器"]
@@ -104,7 +104,7 @@ handle_errors {
 
 ## GitHub Actions：那个 255
 
-这是整晚最折腾的部分。
+这是这半天里最折腾的部分。
 
 流程本身不复杂：GitHub Actions 构建完之后，用 rsync 通过 SSH 把 `dist/` 同步到服务器。需要生成一对专用密钥，公钥放到服务器 `authorized_keys`，私钥和服务器地址放进仓库 Secrets。
 
@@ -157,13 +157,15 @@ sort -u -o ~/.ssh/known_hosts ~/.ssh/known_hosts
 
 ## 现在的工作流
 
-日常发布已经退化成一个动作：
+日常发布简化成了一个动作。我用的是 Jujutsu（jj）而不是 git，所以没有 `git add` 这一步——jj 的工作副本本身就是一个 commit，改完描述一下、开个新的 change、推上去就行：
 
 ```bash
-git add .
-git commit -m "新文章"
-git push
+jj describe -m "新文章"
+jj new
+jj git push --bookmark main
 ```
+
+GitHub Actions 只认远端分支上的 push，jj 推上去同样会触发构建。
 
 ```mermaid
 sequenceDiagram
@@ -171,7 +173,7 @@ sequenceDiagram
     participant GH as GitHub Actions
     participant Server as Ubuntu 服务器
     participant CF as Cloudflare
-    Me->>GH: git push
+    Me->>GH: jj git push
     GH->>GH: npm ci / astro check / astro build
     GH->>Server: rsync dist/（SSH）
     Server-->>CF: 源站内容更新
@@ -190,6 +192,6 @@ sequenceDiagram
 - 先灰云，证书签好再开橙云。
 - 给部署单独建一个账号，别用自己有 sudo 的。
 - 遇到报错先读完整日志，最后一行往往就是答案。
-- 别在晚上折腾，报错会被放大。
+- 别赶时间，出错时更容易乱。
 
 大概就这些。

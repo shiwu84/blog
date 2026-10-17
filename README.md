@@ -84,7 +84,7 @@ pubDate: 2026-10-17
 ````markdown
 ```mermaid
 flowchart TD
-    A[本地写 Markdown] -->|git push| B[GitHub Actions]
+    A[本地写 Markdown] -->|jj git push| B[GitHub Actions]
     B --> C[部署到服务器]
 ```
 ````
@@ -114,13 +114,16 @@ flowchart TD
 正式站点：**https://blog.shiwu.dev**（自有 Ubuntu 服务器 + Caddy + Cloudflare）。
 
 ```
-git push main
+jj describe -m "新文章"   # 描述当前改动
+jj new                    # 开始下一个 change
+jj git push --bookmark main
    → GitHub Actions 构建（.github/workflows/deploy.yml）
    → rsync dist/ 到服务器站点目录（默认 /var/www/blog，可配置为 /home/shiwu/blog）
    → Caddy 托管静态文件 + 自动 HTTPS
    → Cloudflare CDN / DNS
 ```
 
+- **版本控制**：本站使用 [Jujutsu](https://jj-vcs.github.io/jj/)（jj）而不是 git。工作副本本身就是一个 commit，日常不需要 `git add`；改动推到 GitHub 后同样会触发 Actions。
 - 工作流：push 到 `main` 自动构建并部署；PR 只做构建检查；也支持 Actions 页面手动触发。
 - 服务器、Caddy、Cloudflare 和 GitHub Secrets 的完整配置步骤见 [deploy/README.md](./deploy/README.md)。
 - 本地手动部署（应急）：`npm run build` 后
