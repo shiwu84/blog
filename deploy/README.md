@@ -72,6 +72,8 @@ sudo WEB_ROOT=/home/shiwu/blog DEPLOY_USER=shiwu \
 
 脚本会：创建/确认用户 → 建站点目录 → 安装 Caddy → 写入部署公钥 → 替换 Caddyfile 的 root 路径 → 配置防火墙 → 启用 Caddy。
 
+> **Caddy 已经安装过？** 在命令前加 `SKIP_CADDY=1` 即可跳过安装，脚本会沿用现有 Caddy（apt / snap 都会自动识别服务名），并在覆盖 `/etc/caddy/Caddyfile` 前自动备份原文件。
+>
 > 站点目录在 `/home/xxx` 下时，脚本会给家目录加 `o+x`（只允许进入、不允许列目录），否则 Caddy 无法读取静态文件。
 
 验证：
