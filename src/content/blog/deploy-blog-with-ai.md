@@ -146,7 +146,7 @@ sort -u -o ~/.ssh/known_hosts ~/.ssh/known_hosts
 
 ## 邮箱为什么显示成 `[email protected]`
 
-关于页的邮箱有一阵子显示成 `[email protected]`，刷新一下又正常。我一开始以为是编码问题，直到看了一眼 HTML 源码：
+关于页的邮箱有一阵子显示成 `[email protected]`，刷新一下又正常。我一开始以为是编码问题，问了 AI 才知道应该先去看 HTML 源码：
 
 ```html
 <a href="/cdn-cgi/l/email-protection#...">
@@ -163,6 +163,8 @@ sort -u -o ~/.ssh/known_hosts ~/.ssh/known_hosts
 最后的处理很简单：删掉兜底脚本，去 Cloudflare 把邮箱混淆关掉。邮箱本来就是公开的，关掉后服务端直接输出真实地址，首屏不闪、换页也不会再出问题，还少了一段 JS。
 
 这件事的教训是：Cloudflare 上那些会改写 HTML 的功能（邮箱混淆、Rocket Loader 之类），和前端路由容易打架——它们都假设你每次是整页加载。
+
+这些原因和解决方案，基本都是问了 AI 才搞明白的：它让我先看 HTML 源码，解释了 Cloudflare 的解码脚本为什么只在整页加载时跑、和 Astro 的前端路由怎么冲突，最后建议直接关掉混淆。我负责确认它说得对不对，以及在 Cloudflare 面板上点那几下。
 
 ## AI 帮了什么，没帮什么
 
