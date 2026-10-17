@@ -1,0 +1,35 @@
+# Caddy 配置：/etc/caddy/Caddyfile
+#
+# 域名：blog.shiwu.dev
+# 站点根目录：/var/www/blog（GitHub Actions 通过 rsync 更新）
+#
+# 用法：
+#   sudo cp Caddyfile /etc/caddy/Caddyfile
+#   sudo caddy validate --config /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+
+blog.shiwu.dev {
+	root * /var/www/blog
+	encode zstd gzip
+	file_server
+
+	# 带内容 hash 的构建资源可长期缓存。
+	@immutable path /_astro/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	# HTML 每次回源校验，发布后立即生效。
+	@html path / *.html
+	header @html Cache-Control "public, max-age=0, must-revalidate"
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# 可选：如果使用 Cloudflare 代理 + Origin 证书，可以注释掉自动 HTTPS，
+	# 改用下面这行指定 Cloudflare 签发的证书：
+	# tls /etc/caddy/origin.pem /etc/caddy/origin.key
+}

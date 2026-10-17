@@ -1,0 +1,21 @@
+---
+import { SITE_TITLE } from "../consts";
+import Box from "../components/layout/Box.astro";
+import Cell from "../components/layout/Cell.astro";
+import SiteLayout from "../layouts/SiteLayout.astro";
+import { withBase } from "../utils/withBase";
+---
+
+<SiteLayout title={`页面不存在 | ${SITE_TITLE}`} description="你访问的页面不存在。">
+  <Box>
+    <Cell variant="header">
+      <p class="text-label tabular-nums text-subtle">404</p>
+      <h1 class="mt-1 text-title text-heading">页面不存在</h1>
+      <p class="mt-1 text-body text-subtle">这个地址没有对应的内容，可能已经移动或删除。</p>
+    </Cell>
+    <Cell class="flex flex-wrap items-center gap-2">
+      <a class="chip chip-link" href={withBase("/")}>返回首页</a>
+      <a class="chip chip-link" href={withBase("/blog/")}>浏览文章</a>
+    </Cell>
+  </Box>
+</SiteLayout>

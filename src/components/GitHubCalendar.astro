@@ -1,0 +1,113 @@
+---
+interface Props {
+  contributions: Array<{ date: string; count: number; level: number }>;
+  totalCount: number;
+}
+
+const { contributions, totalCount } = Astro.props;
+
+const days = [...contributions].sort((a, b) => a.date.localeCompare(b.date));
+const firstDate = new Date(`${days[0].date}T00:00:00Z`);
+const leadingDays = (firstDate.getUTCDay() + 6) % 7;
+const levelClasses = ["bg-contrib-0", "bg-contrib-1", "bg-contrib-2", "bg-contrib-3", "bg-contrib-4"];
+const dayLabel = (date: string, count: number) => `${Number(date.slice(5, 7))}月${Number(date.slice(8, 10))}日 · ${count} 次贡献`;
+
+// 按实际贡献次数重新分档：只有 1 次贡献的账号不会再显示成最亮一档。
+const levelForCount = (count: number) => (
+  count <= 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : count <= 8 ? 3 : 4
+);
+
+// 点阵尺寸由 CSS 变量控制：桌面 11px、平板 9px、手机 8px，保证不裁切且清晰。
+const cells = days.map((day, index) => {
+  const position = leadingDays + index;
+  return { ...day, column: Math.floor(position / 7) + 1, row: (position % 7) + 2 };
+});
+
+const lastColumn = cells.at(-1)?.column ?? 1;
+const monthLabels: { label: string; column: number }[] = [];
+for (const cell of cells) {
+  if (cell.date.slice(8, 10) !== "01" && cell !== cells[0]) continue;
+  if (lastColumn - cell.column < 2) continue;
+  const previous = monthLabels.at(-1);
+  if (previous && cell.column - previous.column < 3) continue;
+  monthLabels.push({ label: `${Number(cell.date.slice(5, 7))}月`, column: cell.column });
+}
+const weekdayLabels = [{ label: "一", row: 2 }, { label: "三", row: 4 }, { label: "五", row: 6 }];
+const weeks = cells.at(-1)?.column ?? 1;
+const rowTemplate = "1.05rem repeat(7, var(--cal-cell))";
+const fieldStyle = {
+  gridTemplateColumns: `repeat(${weeks}, var(--cal-cell))`,
+  gridTemplateRows: rowTemplate,
+  columnGap: "var(--cal-col-gap)",
+  rowGap: "var(--cal-row-gap)",
+};
+const rulerStyle = { gridTemplateRows: rowTemplate, rowGap: "var(--cal-row-gap)" };
+const cellStyle = { width: "var(--cal-cell)", height: "var(--cal-cell)" };
+---
+
+<figure class="contrib-calendar grid min-w-0 justify-items-center gap-2" aria-label={`共 ${totalCount} 次贡献`}>
+  <div class="flex w-full items-start gap-2">
+    {/* 星期标尺：固定在点阵左侧，不参与点阵宽度与居中计算 */}
+    <ol class="grid shrink-0 justify-items-end text-label leading-none text-subtle" style={{ ...rulerStyle, width: "1.25rem" }} aria-hidden="true">
+      {weekdayLabels.map(({ label, row }) => (
+        <li class="flex items-center" style={{ gridRow: row }}>{label}</li>
+      ))}
+    </ol>
+    {/* 点阵主体：窄屏整体横向滚动，宽屏以自身宽度居中 */}
+    <div class="min-w-0 flex-1 overflow-x-auto [scrollbar-width:thin]">
+      <div class="mx-auto grid w-max gap-2">
+        <ol class="grid" style={fieldStyle}>
+          {monthLabels.map(({ label, column }) => (
+            <li class="flex items-center whitespace-nowrap text-label leading-none text-subtle" style={{ gridColumn: column, gridRow: 1 }} aria-hidden="true">{label}</li>
+          ))}
+          {cells.map((cell) => (
+            <li
+              class:list={["contrib-cell rounded-tile", levelClasses[levelForCount(cell.count)]]}
+              style={{ gridColumn: cell.column, gridRow: cell.row }}
+              title={dayLabel(cell.date, cell.count)}
+            >
+              <span class="sr-only">{dayLabel(cell.date, cell.count)}</span>
+            </li>
+          ))}
+        </ol>
+        <figcaption class="flex items-center justify-end gap-1.5 text-label text-subtle" aria-label="贡献强度：少到多">
+          少
+          {levelClasses.map((levelClass) => <i class:list={["inline-block rounded-tile", levelClass]} style={cellStyle} aria-hidden="true" />)}
+          多
+        </figcaption>
+      </div>
+    </div>
+  </div>
+</figure>
+
+<style>
+  .contrib-calendar {
+    /* 点阵清晰度优先：桌面使用 11px 整像素格子。 */
+    --cal-cell: 11px;
+    --cal-col-gap: 2px;
+    --cal-row-gap: 2px;
+  }
+
+  @media (max-width: 800px) {
+    .contrib-calendar {
+      --cal-cell: 9px;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .contrib-calendar {
+      --cal-cell: 8px;
+    }
+  }
+
+  .contrib-cell {
+    transition: outline-color .15s ease, transform .15s ease;
+  }
+
+  .contrib-cell:hover {
+    position: relative;
+    z-index: 1;
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+</style>

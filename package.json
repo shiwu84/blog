@@ -1,0 +1,32 @@
+{
+  "name": "logflow-theme",
+  "type": "module",
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "node --require ./scripts/net-use-shim.cjs ./node_modules/astro/bin/astro.mjs dev",
+    "build": "node --require ./scripts/net-use-shim.cjs ./node_modules/astro/bin/astro.mjs build",
+    "check": "node --require ./scripts/net-use-shim.cjs ./node_modules/astro/bin/astro.mjs check",
+    "preview": "node --require ./scripts/net-use-shim.cjs ./node_modules/astro/bin/astro.mjs preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^8.1.0",
+    "@astrojs/rss": "^4.0.19",
+    "@astrojs/sitemap": "^3.7.4",
+    "@tailwindcss/typography": "^0.5.20",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.4.0",
+    "sharp": "^0.35.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  }
+}

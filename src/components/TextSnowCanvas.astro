@@ -1,0 +1,153 @@
+---
+// 文字雪背景：画质优先版本——不限制 DPR、逐帧渲染、双层景深，颜色随明暗主题切换。
+---
+<canvas
+  id="text-snow-canvas"
+  class="pointer-events-none fixed inset-0 -z-10 h-screen w-screen bg-page"
+  aria-hidden="true"
+  transition:persist="text-snow"
+></canvas>
+
+<script>
+  const canvas = document.getElementById("text-snow-canvas") as HTMLCanvasElement | null;
+  const POOL = "十五博客读书写字静好光阴书页笔记代码思考山月清风慢来日常记录";
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  type Snowflake = {
+    x: number;
+    y: number;
+    size: number;
+    speed: number;
+    sway: number;
+    phase: number;
+    alpha: number;
+    rotate: number;
+    char: string;
+    near: boolean;
+  };
+
+  function readInkRgb() {
+    const value = getComputedStyle(document.documentElement).getPropertyValue("--ink-rgb").trim();
+    return value || "23, 24, 26";
+  }
+
+  function initTextSnow() {
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: true, desynchronized: false });
+    if (!ctx) return;
+
+    // 画质优先：文字按几何精度渲染，避免缩放带来的发虚。
+    try {
+      (ctx as CanvasRenderingContext2D & { textRendering?: string }).textRendering = "geometricPrecision";
+    } catch {}
+
+    let inkRgb = readInkRgb();
+    let width = 1;
+    let height = 1;
+    let dpr = 1;
+    let flakes: Snowflake[] = [];
+
+    const rgba = (alpha: number) => `rgba(${inkRgb}, ${alpha})`;
+
+    const makeFlake = (anywhere: boolean, near: boolean): Snowflake => ({
+      x: Math.random() * width,
+      y: anywhere ? Math.random() * height : -60,
+      // 远景层字更小更淡、飘得更慢；近景层字更大更清楚，形成景深。
+      size: near ? 17 + Math.random() * 11 : 11 + Math.random() * 7,
+      speed: near ? 7 + Math.random() * 12 : 3 + Math.random() * 6,
+      sway: near ? 8 + Math.random() * 18 : 4 + Math.random() * 9,
+      phase: Math.random() * Math.PI * 2,
+      alpha: near ? 0.12 + Math.random() * 0.16 : 0.07 + Math.random() * 0.11,
+      rotate: (Math.random() - 0.5) * 0.3,
+      char: POOL[Math.floor(Math.random() * POOL.length)],
+      near,
+    });
+
+    const draw = () => {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      // 数组按「远景 → 近景」排列，保证近景字压在上层。
+      for (const flake of flakes) {
+        ctx.save();
+        ctx.translate(flake.x, flake.y);
+        ctx.rotate(flake.rotate);
+        ctx.font = `${flake.size}px "Songti SC", "SimSun", Georgia, serif`;
+        ctx.fillStyle = rgba(flake.alpha);
+        ctx.fillText(flake.char, 0, 0);
+        ctx.restore();
+      }
+    };
+
+    const resize = () => {
+      // 不受性能顾虑限制：按物理像素渲染，高分屏下文字边缘更锐利。
+      dpr = Math.max(window.devicePixelRatio || 1, 1);
+      width = Math.max(1, window.innerWidth);
+      height = Math.max(1, window.innerHeight);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+
+      const farCount = Math.min(60, Math.max(18, Math.round(width / 30)));
+      const nearCount = Math.min(30, Math.max(8, Math.round(width / 60)));
+      flakes = [
+        ...Array.from({ length: farCount }, () => makeFlake(true, false)),
+        ...Array.from({ length: nearCount }, () => makeFlake(true, true)),
+      ];
+      draw();
+    };
+
+    let rafId = 0;
+    let last = performance.now();
+    let running = false;
+
+    const tick = (now: number) => {
+      if (!running) return;
+      rafId = requestAnimationFrame(tick);
+      const dt = Math.min(now - last, 60) / 1000;
+      last = now;
+      for (const flake of flakes) {
+        flake.y += flake.speed * dt;
+        flake.x += Math.sin(now / 3200 + flake.phase) * flake.sway * dt;
+        if (flake.y > height + 60) Object.assign(flake, makeFlake(false, flake.near));
+      }
+      draw();
+    };
+
+    const start = () => {
+      if (running || reducedMotion || document.hidden) return;
+      running = true;
+      last = performance.now();
+      rafId = requestAnimationFrame(tick);
+    };
+
+    const stop = () => {
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
+    };
+
+    const syncTheme = () => {
+      inkRgb = readInkRgb();
+      if (!running) draw();
+    };
+    new MutationObserver(syncTheme).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    resize();
+    window.addEventListener("resize", resize);
+    // 字体加载完成后重绘一次，保证用的是衬线字体而不是回退字体。
+    void document.fonts?.ready.then(() => { if (!running) draw(); });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stop();
+      else start();
+    });
+    window.addEventListener("focus", start);
+    window.addEventListener("blur", stop);
+    start();
+  }
+
+  initTextSnow();
+</script>

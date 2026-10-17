@@ -1,0 +1,40 @@
+---
+import { GH_CONTRIBUTE } from "../consts";
+import { fetchGitHubContributions, type GitHubContributionData } from "../utils/githubContributions";
+import GitHubCalendar from "./GitHubCalendar.astro";
+import Count from "./Count.astro";
+import Box from "./layout/Box.astro";
+import Cell from "./layout/Cell.astro";
+
+let contributionData: GitHubContributionData | null = null;
+
+// 配置了只读 token 时走官方 GraphQL，否则走免 token 的公开统计接口。
+const token = import.meta.env.GITHUB_TOKEN ?? process.env.GITHUB_TOKEN
+  ?? import.meta.env.GH_TOKEN ?? process.env.GH_TOKEN;
+
+if (GH_CONTRIBUTE.enabled) {
+  try {
+    contributionData = await fetchGitHubContributions(GH_CONTRIBUTE.username, token);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[GitHub contributions] ${message}`);
+  }
+}
+---
+
+{contributionData && (
+  <Box as="section">
+    <Cell as="header" variant="header">
+      <div class="flex flex-wrap items-center gap-2">
+        <h2 class="text-section whitespace-nowrap">
+          <a class="text-heading no-underline hover:text-accent" href={GH_CONTRIBUTE.profileUrl} target="_blank" rel="noopener noreferrer">{GH_CONTRIBUTE.title}</a>
+        </h2>
+        <Count value={contributionData.totalCount} unit="次贡献" />
+      </div>
+      <p class="mt-1 text-body text-subtle">{GH_CONTRIBUTE.description}</p>
+    </Cell>
+    <Cell>
+      <GitHubCalendar {...contributionData} />
+    </Cell>
+  </Box>
+)}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="十五的博客">
+  <rect width="64" height="64" rx="14" fill="#121314" />
+  <circle cx="52" cy="12" r="4" fill="#d5d7db" />
+  <text x="32" y="43" text-anchor="middle" font-family="ui-monospace, Consolas, monospace" font-size="28" font-weight="700" fill="#e4e5e8">15</text>
+</svg>
