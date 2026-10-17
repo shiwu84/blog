@@ -1,6 +1,6 @@
 ---
 title: 和 DeepSeek Harness 一起，把博客部署到自己的服务器
-description: 主题是自己挑的，报错只有两次。记录和 AI 一起把 Astro 博客部署到自己的服务器：Cloudflare、Caddy、GitHub Actions，还有踩过的坑。
+description: 主题是我自己挑的，部署一共只失败过两次。和 AI 一起把 Astro 博客搬上自己的服务器，顺带记下 Cloudflare、Caddy 和 GitHub Actions 踩过的坑。
 pubDate: 2026-10-17
 collection: 折腾日志
 collectionDescription: 服务器、部署与各种工具折腾记录
