@@ -38,7 +38,15 @@ jobs:
         run: npm run check
 
       - name: Build
-        run: npm run build
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          if [ -n "${GH_TOKEN}" ]; then
+            echo "贡献图数据源：GitHub GraphQL（GH_TOKEN 已配置）"
+          else
+            echo "贡献图数据源：公开统计接口（未配置 GH_TOKEN）"
+          fi
+          npm run build
 
       - name: Upload build output
         uses: actions/upload-artifact@v7

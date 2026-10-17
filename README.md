@@ -125,7 +125,12 @@ flowchart TD
 
 ## 可选功能
 
-- **GitHub 活跃度**：首页默认显示，免 token 即可工作（走公开统计接口）。想用 GitHub 官方 GraphQL 数据，复制 `.env.example` 为 `.env` 并填入只读的 `GITHUB_TOKEN`；把 `src/consts.ts` 里的 `GH_CONTRIBUTE.enabled` 设为 `false` 可关闭该区块。手机端显示最近半年，桌面端显示完整一年。
+- **GitHub 活跃度**：首页默认显示，免 token 即可工作（走公开统计接口）。想改用 GitHub 官方 GraphQL 数据：
+  1. 在 [GitHub Settings → Tokens](https://github.com/settings/tokens) 创建一个只读 token（classic token 勾选 `read:user` 即可，建议设置过期时间）；
+  2. 在仓库 `Settings → Secrets and variables → Actions` 里添加 Secret：`GH_TOKEN`；
+  3. 工作流会把 `GH_TOKEN` 传给构建步骤，日志里会显示「贡献图数据源：GitHub GraphQL」。
+
+  本地想用官方数据时，把 `.env.example` 复制为 `.env`，填入 `GITHUB_TOKEN=...`；GraphQL 失败会自动回退到公开统计接口。想在贡献图里统计私密贡献，需要在 GitHub 个人资料设置里开启「Include private contributions on my profile」（只显示次数，不暴露仓库内容）。手机端显示最近半年，桌面端显示完整一年；把 `src/consts.ts` 里的 `GH_CONTRIBUTE.enabled` 设为 `false` 可关闭该区块。
 - **giscus 评论**：在 GitHub 仓库开启 Discussions，然后把 `src/consts.ts` 中 `COMMENTS` 的 `repo`、`repoId`、`categoryId` 填好，并把 `enabled` 设为 `true`。
 - **友链**：在 `src/config/friend-links.ts` 中按 `FriendLink` 接口添加；没有友链时页面会显示空状态提示。
 - **搜索**：构建时生成静态索引（只含标题、摘要和标签），按 `Ctrl/⌘ + K` 或 `/` 打开。

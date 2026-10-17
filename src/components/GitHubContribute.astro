@@ -1,7 +1,7 @@
 ---
 import { GH_CONTRIBUTE } from "../consts";
 import { splitRecentContributions, type ContributionDay } from "../utils/contributions";
-import { fetchGitHubContributions, type GitHubContributionData } from "../utils/githubContributions";
+import { fetchGitHubContributions, fetchPublicContributions, type GitHubContributionData } from "../utils/githubContributions";
 import GitHubCalendar from "./GitHubCalendar.astro";
 import Count from "./Count.astro";
 import Box from "./layout/Box.astro";
@@ -16,14 +16,31 @@ const token = import.meta.env.GITHUB_TOKEN ?? process.env.GITHUB_TOKEN
   ?? import.meta.env.GH_TOKEN ?? process.env.GH_TOKEN;
 
 if (GH_CONTRIBUTE.enabled) {
+  let source: "graphql" | "public" = token ? "graphql" : "public";
+
   try {
     contributionData = await fetchGitHubContributions(GH_CONTRIBUTE.username, token);
-    const recent = splitRecentContributions(contributionData.contributions);
-    recentContributions = recent.recentDays;
-    recentTotalCount = recent.recentTotalCount;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn(`[GitHub contributions] ${message}`);
+
+    // token 失效、权限不足或接口异常时，退回免 token 的公开统计接口，至少保证贡献图能显示。
+    if (token) {
+      try {
+        contributionData = await fetchPublicContributions(GH_CONTRIBUTE.username);
+        source = "public";
+      } catch (fallbackError) {
+        const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+        console.warn(`[GitHub contributions] 公开接口兜底也失败：${fallbackMessage}`);
+      }
+    }
+  }
+
+  if (contributionData) {
+    console.info(`[GitHub contributions] 数据源：${source === "graphql" ? "官方 GraphQL" : "公开统计接口"}`);
+    const recent = splitRecentContributions(contributionData.contributions);
+    recentContributions = recent.recentDays;
+    recentTotalCount = recent.recentTotalCount;
   }
 }
 ---
