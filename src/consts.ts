@@ -78,6 +78,7 @@ export const GH_CONTRIBUTE = {
   enabled: true,
   title: "GitHub 活跃度",
   description: "最近一年的开源贡献记录",
+  descriptionMobile: "最近半年的开源贡献记录",
   username: "shiwu84",
   profileUrl: "https://github.com/shiwu84",
   errorMessage: "GitHub 贡献图暂时不可用。",

@@ -1,0 +1,133 @@
+---
+interface Props {
+  days: Array<{ date: string; count: number; level: number }>;
+  totalCount: number;
+}
+
+const { days: rawDays, totalCount } = Astro.props;
+
+const days = [...rawDays].sort((a, b) => a.date.localeCompare(b.date));
+const levelClasses = ["bg-contrib-0", "bg-contrib-1", "bg-contrib-2", "bg-contrib-3", "bg-contrib-4"];
+const dayLabel = (date: string, count: number) => `${Number(date.slice(5, 7))}月${Number(date.slice(8, 10))}日 · ${count} 次贡献`;
+
+// 按实际贡献次数重新分档：只有 1 次贡献的账号不会再显示成最亮一档。
+const levelForCount = (count: number) => (
+  count <= 0 ? 0 : count === 1 ? 1 : count <= 3 ? 2 : count <= 8 ? 3 : 4
+);
+
+const first = days[0];
+const firstDate = first ? new Date(`${first.date}T00:00:00Z`) : null;
+const leadingDays = firstDate ? (firstDate.getUTCDay() + 6) % 7 : 0;
+
+const cells = days.map((day, index) => {
+  const position = leadingDays + index;
+  return { ...day, column: Math.floor(position / 7) + 1, row: (position % 7) + 2 };
+});
+
+const lastColumn = cells.at(-1)?.column ?? 1;
+const monthLabels: { label: string; column: number }[] = [];
+for (const cell of cells) {
+  // 只在「每月 1 日」所在的那一周标注月份；窗口首尾的半月不单独打标签。
+  if (cell.date.slice(8, 10) !== "01") continue;
+  if (lastColumn - cell.column < 2) continue;
+  const previous = monthLabels.at(-1);
+  if (previous && cell.column - previous.column < 3) continue;
+  monthLabels.push({ label: `${Number(cell.date.slice(5, 7))}月`, column: cell.column });
+}
+const weekdayLabels = [{ label: "一", row: 2 }, { label: "三", row: 4 }, { label: "五", row: 6 }];
+const weeks = cells.at(-1)?.column ?? 1;
+
+// 尺寸全部交给 CSS 变量：桌面 11px 格子，窄屏按容器宽度自动缩放，保证整张图完整显示。
+const fieldStyle = {
+  gridTemplateColumns: `repeat(${weeks}, var(--cal-cell))`,
+  gridTemplateRows: `var(--cal-head) repeat(7, var(--cal-cell))`,
+  columnGap: "var(--cal-gap-x)",
+  rowGap: "var(--cal-gap-y)",
+};
+const rulerStyle = { gridTemplateRows: `var(--cal-head) repeat(7, var(--cal-cell))`, rowGap: "var(--cal-gap-y)" };
+const legendCellStyle = { width: "max(6px, var(--cal-cell))", height: "max(6px, var(--cal-cell))" };
+---
+
+{days.length > 0 && (
+  <figure
+    class="contrib-calendar grid min-w-0 justify-items-center gap-2"
+    style={`--cal-weeks: ${weeks}`}
+    aria-label={`共 ${totalCount} 次贡献`}
+  >
+    <div class="cal-row flex w-full items-start gap-2">
+      {/* 星期标尺：固定在点阵左侧，不参与点阵宽度与居中计算 */}
+      <ol class="cal-weekdays grid shrink-0 justify-items-end leading-none text-subtle" style={{ ...rulerStyle, width: "1.25rem" }} aria-hidden="true">
+        {weekdayLabels.map(({ label, row }) => (
+          <li class="flex items-center" style={{ gridRow: row }}>{label}</li>
+        ))}
+      </ol>
+      {/* 点阵主体：宽度由 CSS 变量计算，完整显示；保留横向滚动作为极端情况的兜底 */}
+      <div class="min-w-0 flex-1 overflow-x-auto [scrollbar-width:thin]">
+        <div class="mx-auto grid w-max gap-2">
+          <ol class="cal-field grid" style={fieldStyle}>
+            {monthLabels.map(({ label, column }) => (
+              <li class="cal-month-label flex items-center whitespace-nowrap leading-none text-subtle" style={{ gridColumn: column, gridRow: 1 }} aria-hidden="true">{label}</li>
+            ))}
+            {cells.map((cell) => (
+              <li
+                class:list={["contrib-cell rounded-tile", levelClasses[levelForCount(cell.count)]]}
+                style={{ gridColumn: cell.column, gridRow: cell.row }}
+                title={dayLabel(cell.date, cell.count)}
+              >
+                <span class="sr-only">{dayLabel(cell.date, cell.count)}</span>
+              </li>
+            ))}
+          </ol>
+          <figcaption class="cal-legend flex items-center justify-end gap-1.5 leading-none text-subtle" aria-label="贡献强度：少到多">
+            少
+            {levelClasses.map((levelClass) => <i class:list={["inline-block rounded-tile", levelClass]} style={legendCellStyle} aria-hidden="true" />)}
+            多
+          </figcaption>
+        </div>
+      </div>
+    </div>
+  </figure>
+)}
+
+<style>
+  .contrib-calendar {
+    container-type: inline-size;
+  }
+
+  .cal-weekdays,
+  .cal-month-label,
+  .cal-legend {
+    font-size: var(--cal-label-size);
+  }
+
+  .cal-row {
+    --cal-gap-x: 2px;
+    --cal-gap-y: 2px;
+    --cal-head: 1.05rem;
+    /* 兜底尺寸；支持容器查询时用下面的自适应计算覆盖 */
+    --cal-cell: 11px;
+    /* 标签字号随格子缩放，避免窄屏上月份文字互相重叠 */
+    --cal-label-size: min(0.75rem, calc(var(--cal-cell) + 2px));
+  }
+
+  @supports (container-type: inline-size) {
+    .cal-row {
+      /* 可用宽度 = 容器宽度 - 星期标尺 - 间距；再均分给所有周，上限 11px */
+      --cal-cell: min(
+        11px,
+        calc((100cqw - 1.75rem - (var(--cal-weeks) - 1) * var(--cal-gap-x)) / var(--cal-weeks))
+      );
+    }
+  }
+
+  .contrib-cell {
+    transition: outline-color .15s ease;
+  }
+
+  .contrib-cell:hover {
+    position: relative;
+    z-index: 1;
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+</style>

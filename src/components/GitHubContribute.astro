@@ -1,5 +1,6 @@
 ---
 import { GH_CONTRIBUTE } from "../consts";
+import { splitRecentContributions, type ContributionDay } from "../utils/contributions";
 import { fetchGitHubContributions, type GitHubContributionData } from "../utils/githubContributions";
 import GitHubCalendar from "./GitHubCalendar.astro";
 import Count from "./Count.astro";
@@ -7,6 +8,8 @@ import Box from "./layout/Box.astro";
 import Cell from "./layout/Cell.astro";
 
 let contributionData: GitHubContributionData | null = null;
+let recentContributions: ContributionDay[] = [];
+let recentTotalCount = 0;
 
 // 配置了只读 token 时走官方 GraphQL，否则走免 token 的公开统计接口。
 const token = import.meta.env.GITHUB_TOKEN ?? process.env.GITHUB_TOKEN
@@ -15,6 +18,9 @@ const token = import.meta.env.GITHUB_TOKEN ?? process.env.GITHUB_TOKEN
 if (GH_CONTRIBUTE.enabled) {
   try {
     contributionData = await fetchGitHubContributions(GH_CONTRIBUTE.username, token);
+    const recent = splitRecentContributions(contributionData.contributions);
+    recentContributions = recent.recentDays;
+    recentTotalCount = recent.recentTotalCount;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn(`[GitHub contributions] ${message}`);
@@ -29,12 +35,19 @@ if (GH_CONTRIBUTE.enabled) {
         <h2 class="text-section whitespace-nowrap">
           <a class="text-heading no-underline hover:text-accent" href={GH_CONTRIBUTE.profileUrl} target="_blank" rel="noopener noreferrer">{GH_CONTRIBUTE.title}</a>
         </h2>
-        <Count value={contributionData.totalCount} unit="次贡献" />
+        <span class="hidden md:inline-flex"><Count value={contributionData.totalCount} unit="次贡献" /></span>
+        <span class="inline-flex md:hidden"><Count value={recentTotalCount} unit="次贡献" /></span>
       </div>
-      <p class="mt-1 text-body text-subtle">{GH_CONTRIBUTE.description}</p>
+      <p class="mt-1 hidden text-body text-subtle md:block">{GH_CONTRIBUTE.description}</p>
+      <p class="mt-1 text-body text-subtle md:hidden">{GH_CONTRIBUTE.descriptionMobile}</p>
     </Cell>
     <Cell>
-      <GitHubCalendar {...contributionData} />
+      <GitHubCalendar
+        contributions={contributionData.contributions}
+        totalCount={contributionData.totalCount}
+        recentContributions={recentContributions}
+        recentTotalCount={recentTotalCount}
+      />
     </Cell>
   </Box>
 )}

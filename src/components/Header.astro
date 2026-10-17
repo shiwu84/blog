@@ -44,7 +44,7 @@ const navDotClass = "size-1 scale-[.45] rounded-full bg-current opacity-0 transi
 
   <nav
     id="mobile-nav"
-    class="pointer-events-none invisible h-0 overflow-hidden border-border opacity-0 group-data-animate:transition-all group-data-animate:duration-150 group-data-open:pointer-events-auto group-data-open:visible group-data-open:h-20 group-data-open:border-t group-data-open:opacity-100 md:hidden"
+    class="pointer-events-none invisible h-0 overflow-hidden border-border opacity-0 group-data-animate:transition-[height,opacity] group-data-animate:duration-200 group-data-animate:ease-out group-data-open:pointer-events-auto group-data-open:visible group-data-open:h-20 group-data-open:border-t group-data-open:opacity-100 md:hidden"
     aria-label="移动端导航"
     aria-hidden="true"
   >
@@ -62,6 +62,33 @@ const navDotClass = "size-1 scale-[.45] rounded-full bg-current opacity-0 transi
     </div>
   </nav>
 </header>
+
+<style>
+  /* 菜单展开时，导航项依次淡入上浮；收起时直接淡出。 */
+  #mobile-nav ul > li {
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity .16s ease, transform .16s ease;
+  }
+
+  [data-site-header][data-open] #mobile-nav ul > li {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  [data-site-header][data-open] #mobile-nav ul > li:nth-child(1) { transition-delay: 30ms; }
+  [data-site-header][data-open] #mobile-nav ul > li:nth-child(2) { transition-delay: 60ms; }
+  [data-site-header][data-open] #mobile-nav ul > li:nth-child(3) { transition-delay: 90ms; }
+  [data-site-header][data-open] #mobile-nav ul > li:nth-child(4) { transition-delay: 120ms; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #mobile-nav ul > li {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
+</style>
 
 <script is:inline data-astro-rerun>
   try {
@@ -89,19 +116,67 @@ const navDotClass = "size-1 scale-[.45] rounded-full bg-current opacity-0 transi
       menuToggle?.setAttribute("aria-expanded", String(open));
       menuToggle?.setAttribute("aria-label", open ? "收起导航" : "展开导航");
       mobileNav?.setAttribute("aria-hidden", String(!open));
+      // inert 让收起状态下的链接不可点击、不可聚焦，避免 Tab 进入隐藏菜单
+      mobileNav?.toggleAttribute("inert", !open);
       mobileNav?.querySelectorAll("a").forEach((link) => { link.tabIndex = open ? 0 : -1; });
       if (persist) writeMenuOpen(open);
     };
+
+    const closeMenu = () => setMenuOpen(false);
+
     const syncMenuToViewport = () => setMenuOpen(mobileViewport.matches && readMenuOpen(), false);
 
     menuToggle?.addEventListener("click", () => {
       header?.setAttribute("data-animate", "");
       setMenuOpen(menuToggle.getAttribute("aria-expanded") !== "true");
     });
-    const onKeydown = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };
+
+    // 点击菜单里的导航链接后立即收起，换页后不会再弹开
+    const onMobileNavClick = (event: Event) => {
+      const target = event.target as Element | null;
+      if (target?.closest("a")) {
+        closeMenu();
+        writeMenuOpen(false);
+      }
+    };
+    mobileNav?.addEventListener("click", onMobileNavClick);
+
+    // 任何站内跳转（logo、页脚、前进后退）开始前都收起菜单
+    const onBeforePreparation = () => {
+      closeMenu();
+      writeMenuOpen(false);
+    };
+    document.addEventListener("astro:before-preparation", onBeforePreparation);
+    window.addEventListener("popstate", onBeforePreparation);
+
+    // 点击菜单外部时关闭
+    const onPointerDown = (event: PointerEvent) => {
+      if (!header?.hasAttribute("data-open")) return;
+      const target = event.target as Element | null;
+      if (target?.closest("[data-site-header]")) return;
+      closeMenu();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+
+    const onKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && header?.hasAttribute("data-open")) {
+        closeMenu();
+        menuToggle?.focus();
+      }
+    };
     document.addEventListener("keydown", onKeydown);
+
     mobileViewport.addEventListener("change", syncMenuToViewport);
-    menuCleanup = () => { document.removeEventListener("keydown", onKeydown); mobileViewport.removeEventListener("change", syncMenuToViewport); };
+
+    menuCleanup = () => {
+      document.removeEventListener("astro:before-preparation", onBeforePreparation);
+      window.removeEventListener("popstate", onBeforePreparation);
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeydown);
+      mobileViewport.removeEventListener("change", syncMenuToViewport);
+      mobileNav?.removeEventListener("click", onMobileNavClick);
+    };
+
     syncMenuToViewport();
   });
 </script>
