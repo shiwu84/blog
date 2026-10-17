@@ -61,8 +61,8 @@ const legendCellStyle = { width: "max(6px, var(--cal-cell))", height: "max(6px, 
           <li class="flex items-center" style={{ gridRow: row }}>{label}</li>
         ))}
       </ol>
-      {/* 点阵主体：宽度由 CSS 变量计算，完整显示；保留横向滚动作为极端情况的兜底 */}
-      <div class="min-w-0 flex-1 overflow-x-auto [scrollbar-width:thin]">
+      {/* 点阵主体：正常浏览器下尺寸计算保证完整放下，不产生滚动；旧浏览器才退回横向滚动 */}
+      <div class="cal-scroll min-w-0 flex-1">
         <div class="mx-auto grid w-max gap-2">
           <ol class="cal-field grid" style={fieldStyle}>
             {monthLabels.map(({ label, column }) => (
@@ -119,6 +119,18 @@ const legendCellStyle = { width: "max(6px, var(--cal-cell))", height: "max(6px, 
         11px,
         calc((100cqw - 1.75rem - (var(--cal-weeks) - 1) * var(--cal-gap-x) - 4px) / var(--cal-weeks))
       );
+    }
+  }
+
+  .cal-scroll {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  /* 支持容器查询的浏览器里，尺寸已经算好能完整放下，直接禁止横向滚动 */
+  @supports (container-type: inline-size) {
+    .cal-scroll {
+      overflow-x: clip;
     }
   }
 
