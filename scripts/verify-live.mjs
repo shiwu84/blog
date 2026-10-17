@@ -1,6 +1,9 @@
 // 线上验收脚本：node scripts/verify-live.mjs [baseUrl]
 const baseUrl = (process.argv[2] ?? "https://blog.shiwu.dev").replace(/\/$/, "");
 
+const POST_SLUG = "deploy-blog-with-ai";
+const POST_TITLE = "和 DeepSeek Harness 一起，把博客部署到自己的服务器";
+
 const results = [];
 function check(name, ok, detail = "") {
 	results.push({ name, ok, detail });
@@ -17,7 +20,7 @@ check("首页 200", home.status === 200, String(home.status));
 check("标题为「十五的博客」", home.text.includes("<title>十五的博客</title>"));
 check("文字雪背景已渲染", home.text.includes("text-snow-canvas"));
 check("GitHub 活跃度区块", home.text.includes("GitHub 活跃度") && home.text.includes("次贡献"));
-check("首页文章区空状态", home.text.includes("还没有文章"));
+check("首页显示第一篇文章", home.text.includes(POST_TITLE));
 check("页脚版权", home.text.includes("十五"));
 check("Cloudflare 代理", (home.headers.get("server") ?? "").toLowerCase().includes("cloudflare"), home.headers.get("server") ?? "");
 check("HTML 不缓存策略", (home.headers.get("cache-control") ?? "").includes("must-revalidate"), home.headers.get("cache-control") ?? "");
@@ -31,7 +34,10 @@ if (cssMatch) {
 }
 
 const blog = await get("/blog/");
-check("文章列表页", blog.status === 200 && blog.text.includes("还没有文章"));
+check("文章列表页", blog.status === 200 && blog.text.includes(POST_TITLE));
+
+const post = await get(`/blog/${POST_SLUG}/`);
+check("文章详情页", post.status === 200 && post.text.includes("DeepSeek Harness"));
 
 const about = await get("/about/");
 check("关于页", about.status === 200 && about.text.includes("我是十五"));
@@ -40,7 +46,7 @@ const rss = await get("/rss.xml");
 check("RSS 可访问且站点地址正确", rss.status === 200 && rss.text.includes("https://blog.shiwu.dev/"));
 
 const sitemap = await get("/sitemap-0.xml");
-check("sitemap 包含站点地址", sitemap.status === 200 && sitemap.text.includes("https://blog.shiwu.dev/"));
+check("sitemap 包含文章页", sitemap.status === 200 && sitemap.text.includes(`/blog/${POST_SLUG}/`));
 
 const notFound = await get("/this-page-should-404/");
 check("自定义 404 页面", notFound.status === 404 && notFound.text.includes("页面不存在"));
