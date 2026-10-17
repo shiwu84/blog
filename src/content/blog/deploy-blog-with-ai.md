@@ -12,24 +12,24 @@ tags:
   - DeepSeek Harness
 ---
 
-十月十七号下午，我先清理了服务器上用 Docker 部署的 memos 和 vaultwarden，顺手把里面的笔记导出到了 Obsidian。收拾完这些，才开始折腾这个博客。
+十月十七号下午，我先清理了服务器上用 Docker 部署的 memos 和 vaultwarden，顺手把里面的笔记导出到了 Obsidian。收拾完这些，才开始折腾这个博客的部署。
 
-主题是我自己挑的。翻了一圈 Astro 博客主题，最后选了 LogFlow Theme——灰色调、衬线正文，看着舒服。
+主题是我自己挑的：对比了 [Ink](https://astro.build/themes/details/ink/)、[whono](https://astro.build/themes/details/astro-whono/) 和 [LogFlow](https://astro.build/themes/details/logflow/) 之后，最后选了 LogFlow——灰色调、衬线正文，看着舒服。
 
-折腾到下午四点多，GitHub Actions 第二次报错，屏幕上只有一行：
+折腾到下午三点多，GitHub Actions 第二次报错，屏幕上只有一行：
 
 ```text
 Process completed with exit code 255.
 ```
 
-一共就失败了两次：第一次是 Secret 没配完，第二次是这个 255。
+一共就失败了两次：第一次是 Secret 没配完，第二次就是这个 255。
 
 <figure>
   <img src="/images/deploy/timeline.svg" alt="2026 年 10 月 17 日下午的部署流程：清理 Docker 服务、选定主题、配置 Cloudflare 与 Caddy、两次失败、部署成功" />
   <figcaption>图 1：那天下午的流程</figcaption>
 </figure>
 
-现在写完文章推一下，十来秒后网站上就能看到。
+现在写完文章推一下，半分钟左右网站上就能看到。
 
 ## 我本来差点就用 Pages 了
 
@@ -56,29 +56,23 @@ flowchart TD
 
 拆开看就四件事：Cloudflare 负责域名解析，Caddy 负责 HTTPS 和静态文件，GitHub Actions 负责构建，一把 SSH 密钥负责把两边接起来。
 
-## 域名：先别急着开橙色云
+## 域名：A 记录、橙云和 Full (strict)
 
-在 Cloudflare 加一条 A 记录，指向服务器的公网 IP。这一步没什么好说的。
+在 Cloudflare 加一条 A 记录，指向服务器的公网 IP。
 
-关键是代理状态。我一开始顺手就开了橙云（Proxied），结果 Caddy 申请证书的时候一直失败。后来把代理切回灰云（DNS only），证书几分钟就签下来了，再切回橙云、SSL/TLS 模式改成 **Full (strict)**，一切正常。
+HTTPS 交给 Caddy：证书自动申请、自动续期。Cloudflare 这边代理开着橙云，SSL/TLS 模式用 **Full (strict)**，访问正常。
 
-顺序是 AI 提醒我的。它当时说“你先把灰云跑通，再考虑代理”，我照做了。事后想想确实是这个道理，只是我一开始太想一步到位。
-
-## 服务器：一个 403 换来的 o+x
+## 服务器：站点目录和一行权限
 
 部署目录我放在 `/home/shiwu/blog`。没用 root 目录，也没用 `/var/www`，就放在自己的用户目录下。
 
-结果 Caddy 返回了 403。
-
-排查了一会儿才明白：站点在 `/home` 下面，Caddy 的运行用户得能**穿过**家目录，才读得到里面的文件。而家目录默认是 `drwxr-x---`，Caddy 进不去。
+站点在 `/home` 下面，Caddy 的运行用户需要能**穿过**家目录，才读得到里面的文件，所以部署脚本里做了这件事：
 
 ```bash
 chmod o+x /home/shiwu
 ```
 
-只允许进入，不允许列目录。改完 403 就没了。
-
-这种问题就属于“不知道的话能卡半天，知道了就是一行命令”。
+只允许进入，不允许列目录。脚本会在站点目录位于 `/home/*` 下时自动处理。
 
 ## Caddy：conf.d 和那个不生效的 404
 
@@ -110,9 +104,7 @@ handle_errors {
 
 第一次失败是 Secret 还没填完，`Setup SSH agent` 直接报错。这个好办。
 
-改完再推，第二次失败就是开头那个 `exit 255`。我一开始怀疑是密钥格式问题，把 `authorized_keys` 翻来覆去检查了两遍，还重新生成过一次密钥。折腾半天，问题根本不在这。
-
-AI 让我把 `Test SSH connection` 这一步的完整日志拉出来。日志最后一行是：
+改完再推，第二次失败就是开头那个 `exit 255`。密钥是我自己生成的，生成命令是 AI 给的。AI 在工作流里加了一步 `Test SSH connection`，完整日志最后一行是：
 
 ```text
 No ED25519 host key is known for ... and you have requested strict checking.
@@ -135,6 +127,8 @@ sort -u -o ~/.ssh/known_hosts ~/.ssh/known_hosts
 
 这件事给我一个教训：**看到 255，先去读日志最后一行，别急着怀疑自己**。
 
+前后一共跑了 6 次工作流：两次失败，后面成功的几次每次 30–40 秒。
+
 ## 顺手修的几个小问题
 
 - `scp` 明明装了却提示找不到，最后用完整路径解决的：`C:\WINDOWS\System32\OpenSSH\scp.exe`。
@@ -149,7 +143,7 @@ sort -u -o ~/.ssh/known_hosts ~/.ssh/known_hosts
 
 **它最帮得上忙的是读日志和写配置。** 比如 255 那次，我还在怀疑密钥，它已经从上一条报错里挑出 known_hosts 的问题了。Caddyfile 和工作流也是它先起草，我再按自己的情况改。
 
-**它也会带错方向。** 中间它建议我直接开橙云，我照做，结果证书失败，又切回灰云。后来想想，它一开始就说过“先灰云”，是我自己没听。
+**它也不是一次就写对。** 一开始 Caddy 只配了 `file_server`，自定义 404 没生效，上线后才发现，补了 `handle_errors` 才正常。
 
 **有些事它替不了我。** 在 Cloudflare 面板点按钮、在服务器上跑 sudo、把私钥粘进 GitHub Secrets——这些都得自己来。
 
@@ -179,7 +173,7 @@ sequenceDiagram
     CF-->>Me: 访问 https://blog.shiwu.dev
 ```
 
-看着 Actions 变绿、刷新后文章出现在网站上，确实挺爽的。前面那些 403、255 和空白页，好像也值了。
+看着 Actions 变绿、刷新后文章出现在网站上，确实挺爽的。前面那些 255、空白页，还有手机上被裁掉的贡献图，好像也值了。
 
 <figure>
   <img src="/images/deploy/github-actions-runs.png" alt="GitHub Actions 的运行记录页面：部署成功的运行显示绿色对勾，列表下方保留着两次失败的记录" />
@@ -188,7 +182,7 @@ sequenceDiagram
 
 ## 如果重来一次
 
-- 先灰云，证书签好再开橙云。
+- 先把 SSH 部署链路单独测通，再交给 Actions。
 - 遇到报错先读完整日志，最后一行往往就是答案。
 - 别赶时间，出错时更容易乱。
 
