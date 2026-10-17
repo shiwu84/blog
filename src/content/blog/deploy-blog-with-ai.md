@@ -103,6 +103,8 @@ handle_errors {
 
 流程本身不复杂：GitHub Actions 构建完，用 rsync 通过 SSH 把 `dist/` 同步到服务器。为此得生成一对专用密钥：公钥放到服务器的 `authorized_keys`，私钥和服务器地址放进仓库的 Secrets。
 
+顺带还有个小插曲：本机 PowerShell 一开始找不到 `scp`，最后用完整路径 `C:\WINDOWS\System32\OpenSSH\scp.exe` 才把部署文件传上去。
+
 第一次失败是 Secret 还没填完，`Setup SSH agent` 直接报错。这个好办。
 
 改完再推，第二次失败就是开头那个 `exit 255`。密钥是我自己生成的，生成命令是 AI 给的。AI 在工作流里加了一步 `Test SSH connection`，完整日志最后一行是：
@@ -142,12 +144,25 @@ sort -u -o ~/.ssh/known_hosts ~/.ssh/known_hosts
 
 顺带说清楚两件事：这张图是**构建时的快照**，不是实时的，每次部署才更新一次；格子的深浅是我按次数自己定的档，不是 GitHub 官方算法，鼠标悬停看得到真实次数。还有，没推上去的提交不会出现——它只统计 GitHub 上已经发生的贡献。
 
-## 顺手修的几个小问题
+## 邮箱为什么显示成 `[email protected]`
 
-- `scp` 明明装了却提示找不到，最后用完整路径解决的：`C:\WINDOWS\System32\OpenSSH\scp.exe`。
-- 关于页的邮箱会显示成 `[email protected]`，刷新一下又正常。原因是 Cloudflare 的邮箱混淆把邮箱换成了占位符，只在整页加载时由脚本解码；把 Cloudflare 面板里的邮箱混淆关掉就正常了。
+关于页的邮箱有一阵子显示成 `[email protected]`，刷新一下又正常。我一开始以为是编码问题，直到看了一眼 HTML 源码：
 
-都是小问题，有 AI 帮忙查，很快就解决了。
+```html
+<a href="/cdn-cgi/l/email-protection#...">
+  <span class="__cf_email__" data-cfemail="...">[email protected]</span>
+</a>
+```
+
+是 Cloudflare 的「邮箱地址混淆」（Scrape Shield 里的功能）干的：它在服务端把页面里的邮箱替换成占位符，再由注入的 `email-decode.min.js` 在浏览器里解码。
+
+问题是博客用了 Astro 的 ClientRouter，换页是前端完成的。Cloudflare 的解码脚本只在整页加载时执行一次，从首页无刷新跳到关于页时它不会重跑，占位符就一直留在那里。
+
+我试过自己兜底：在每次 `astro:page-load` 后手动读取 `data-cfemail`、把十六进制转回字符，顺便把链接的 `href` 改回 `mailto:`。这个办法能解决换页，但解决不了首屏——服务器返回的 HTML 里本来就是占位符，脚本执行前必然闪一下。
+
+最后的处理很简单：删掉兜底脚本，去 Cloudflare 把邮箱混淆关掉。邮箱本来就是公开的，关掉后服务端直接输出真实地址，首屏不闪、换页也不会再出问题，还少了一段 JS。
+
+这件事的教训是：Cloudflare 上那些会改写 HTML 的功能（邮箱混淆、Rocket Loader 之类），和前端路由容易打架——它们都假设你每次是整页加载。
 
 ## AI 帮了什么，没帮什么
 
