@@ -90,19 +90,39 @@ jobs:
       - name: Trust server host key
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
           SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          SSH_HOST_FINGERPRINT: ${{ secrets.SSH_HOST_FINGERPRINT }}
         run: |
+          PORT="${SSH_PORT:-22}"
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "${SSH_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          # 去掉 Windows 换行符，避免 known_hosts 解析失败
+          printf '%s\n' "${SSH_KNOWN_HOSTS}" | tr -d '\r' > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+
+          # Secret 里缺少某类主机密钥（比如只复制了一部分行）时，用 ssh-keyscan 补全
+          ssh-keyscan -p "${PORT}" "${SSH_HOST}" 2>/dev/null | grep -v '^#' >> ~/.ssh/known_hosts || true
+          sort -u -o ~/.ssh/known_hosts ~/.ssh/known_hosts
+
           echo "known_hosts 中的主机密钥指纹："
           ssh-keygen -lf ~/.ssh/known_hosts || true
-          if ! grep -qF -- "${SSH_HOST}" ~/.ssh/known_hosts; then
-            echo "::error::SSH_KNOWN_HOSTS 中找不到主机 [${SSH_HOST}]。请用同一个地址（IP 或域名）执行 ssh-keyscan -p ${SSH_PORT:-22} 后重新填 Secret。"
+
+          if ! ssh-keygen -F "${SSH_HOST}" -f ~/.ssh/known_hosts >/dev/null 2>&1; then
+            echo "::error::无法获取 ${SSH_HOST} 的主机密钥，请检查 SSH_HOST、SSH_PORT、SSH_KNOWN_HOSTS"
             exit 1
           fi
-          echo "SSH_KNOWN_HOSTS 与 SSH_HOST 匹配"
+
+          if [ -n "${SSH_HOST_FINGERPRINT}" ]; then
+            if ! ssh-keygen -lf ~/.ssh/known_hosts | grep -qF "${SSH_HOST_FINGERPRINT}"; then
+              echo "::error::主机密钥指纹与 SSH_HOST_FINGERPRINT 不匹配"
+              exit 1
+            fi
+            echo "主机密钥指纹校验通过（${SSH_HOST_FINGERPRINT}）"
+          else
+            echo "提示：可配置 SSH_HOST_FINGERPRINT 做主机密钥指纹固定校验"
+          fi
+          echo "known_hosts 就绪"
 
       - name: Test SSH connection
         env:
