@@ -16,7 +16,13 @@ const groups = Array.from(postsByYear.entries()).sort((a, b) => b[0] - a[0]);
 
 <SiteLayout title={`${PAGE_COPY.years.title} | ${SITE_TITLE}`} description={PAGE_COPY.years.description}>
   <PageHeader title={PAGE_COPY.years.title} description={PAGE_COPY.years.description} descriptionItalic={PAGE_COPY.years.descriptionItalic} count={{ value: posts.length, unit: "篇" }} />
-  {groups.map(([year, items]) => (
+  {groups.length === 0 ? (
+    <Box>
+      <Cell>
+        <p class="text-body text-subtle">还没有文章，归档会在发布第一篇文章后自动出现。</p>
+      </Cell>
+    </Box>
+  ) : groups.map(([year, items]) => (
     <Box as="section">
       <Cell as="header" variant="header" class="flex items-center gap-2">
         <h2 class="text-section text-heading">{year}</h2>

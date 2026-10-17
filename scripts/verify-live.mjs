@@ -17,7 +17,7 @@ check("首页 200", home.status === 200, String(home.status));
 check("标题为「十五的博客」", home.text.includes("<title>十五的博客</title>"));
 check("文字雪背景已渲染", home.text.includes("text-snow-canvas"));
 check("GitHub 活跃度区块", home.text.includes("GitHub 活跃度") && home.text.includes("次贡献"));
-check("文章列表包含欢迎文章", home.text.includes("你好，世界"));
+check("首页文章区空状态", home.text.includes("还没有文章"));
 check("页脚版权", home.text.includes("十五"));
 check("Cloudflare 代理", (home.headers.get("server") ?? "").toLowerCase().includes("cloudflare"), home.headers.get("server") ?? "");
 check("HTML 不缓存策略", (home.headers.get("cache-control") ?? "").includes("must-revalidate"), home.headers.get("cache-control") ?? "");
@@ -31,10 +31,7 @@ if (cssMatch) {
 }
 
 const blog = await get("/blog/");
-check("文章列表页", blog.status === 200 && blog.text.includes("你好，世界"));
-
-const post = await get("/blog/hello-world/");
-check("文章详情页", post.status === 200 && post.text.includes("为什么开始写博客"));
+check("文章列表页", blog.status === 200 && blog.text.includes("还没有文章"));
 
 const about = await get("/about/");
 check("关于页", about.status === 200 && about.text.includes("我是十五"));

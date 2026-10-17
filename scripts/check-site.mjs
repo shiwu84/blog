@@ -17,46 +17,36 @@ const home = await get("/");
 check("首页 200 且标题为「十五的博客」", home.includes("<title>十五的博客</title>"));
 check("首页使用个人头像 /avatar.svg", home.includes("/avatar.svg"));
 check("文字雪背景动画已渲染", home.includes('id="text-snow-canvas"'));
-check("首页文案已个人化", home.includes("这里是十五的个人博客"));
-check("首页格言已更新", home.includes("保持好奇，认真记录"));
-check("首页显示欢迎文章", home.includes("你好，世界"));
+check("首页文案已个人化", home.includes("计算机学习者"));
+check("首页格言已更新", home.includes("把知识织成网"));
+check("首页文章区空状态", home.includes("还没有文章"));
 check("页脚 GitHub 链接", home.includes("https://github.com/shiwu84"));
 check("页脚邮箱链接", home.includes("mailto:x7y7z84@gmail.com"));
 check("页脚版权署名", home.includes("©") && home.includes("十五"));
 check("GitHub 活跃度图已显示", home.includes("GitHub 活跃度") && home.includes("次贡献"));
+check("桌面/移动两套贡献图", home.includes("--cal-weeks: 54") && home.includes("--cal-weeks: 27"));
 
 const blog = await get("/blog/");
-check("文章页显示欢迎文章", blog.includes("你好，世界"));
-check("文章页包含标签「随笔」「博客」", blog.includes("随笔") && blog.includes("博客"));
-const demo = ["LogFlow Theme：", "Frontmatter 使用实践", "Giscus 配置", "MDX 渲染", "自定义组件", "consts 配置"];
-check("示例文章已清理", demo.every((title) => !blog.includes(title)));
-
-const post = await get("/blog/hello-world/");
-check("欢迎文章详情页可访问", post.includes("你好，世界") && post.includes("为什么开始写博客"));
-check("文章页代码块正常高亮", post.includes("<pre") && post.includes("install"));
+check("文章列表页可访问", blog.includes("文章 | 十五的博客"));
+check("文章列表空状态", blog.includes("还没有文章"));
 
 const about = await get("/about/");
-check("关于页已个人化", about.includes("我是十五") && about.includes("github.com/shiwu84"));
+check("关于页已个人化", about.includes("我是十五") && about.includes("Rust") && about.includes("github.com/shiwu84"));
 
 const friends = await get("/friends/");
 check("友链页有空状态提示", friends.includes("还没有添加友链"));
 
-const rss = await get("/rss.xml");
-check("RSS 使用正式站点地址", rss.includes("https://blog.shiwu.dev/"));
-check("RSS 包含欢迎文章", rss.includes("你好，世界"));
-
-const searchIndex = JSON.parse(await get("/search-index.json"));
-check(
-	"搜索索引仅含欢迎文章",
-	searchIndex.length === 1 && searchIndex[0]?.id === "hello-world",
-	`实际 ${searchIndex.length} 条`,
-);
-
-const sitemap = await get("/blog/tags/");
-check("标签页可访问", sitemap.includes("随笔") && sitemap.includes("博客"));
+const tags = await get("/blog/tags/");
+check("标签页有空状态提示", tags.includes("还没有标签"));
 
 const years = await get("/blog/years/");
-check("归档页可访问", years.includes("2026"));
+check("归档页有空状态提示", years.includes("还没有文章"));
+
+const rss = await get("/rss.xml");
+check("RSS 使用正式站点地址", rss.includes("https://blog.shiwu.dev/"));
+
+const searchIndex = JSON.parse(await get("/search-index.json"));
+check("搜索索引为空数组", Array.isArray(searchIndex) && searchIndex.length === 0, `实际 ${searchIndex.length} 条`);
 
 let failed = 0;
 for (const item of checks) {

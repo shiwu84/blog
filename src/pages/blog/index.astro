@@ -39,15 +39,19 @@ const tags = getTagCounts(posts);
         )}
       </SidebarSection>
       <SidebarSection title="标签" href={withBase("/blog/tags/")}>
-        <ul class="flex flex-wrap gap-1.5">
-          {tags.map(([tag, count]) => (
-            <li>
-              <a class="chip chip-link" href={withBase(tagPath(tag))}>
-                {tag}<span class="tabular-nums">{count}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
+        {tags.length > 0 ? (
+          <ul class="flex flex-wrap gap-1.5">
+            {tags.map(([tag, count]) => (
+              <li>
+                <a class="chip chip-link" href={withBase(tagPath(tag))}>
+                  {tag}<span class="tabular-nums">{count}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="text-body text-subtle">还没有标签</p>
+        )}
       </SidebarSection>
     </aside>
   </div>

@@ -70,6 +70,13 @@ pubDate: 2026-10-17
 
 可选字段：`updatedDate`、`tags`（数组）、`collection` / `collectionDescription`（专题）、`heroImage`（本地图片）、`enableComments`。
 
+### 选题与标签约定
+
+- **专题（collection）** 建议固定几类：`Rust`、`Linux`、`AI`、`游戏开发`、`折腾日志`
+- **标签（tags）** 写更细的关键词，例如：`所有权`、`借用`、`Caddy`、`Cloudflare`、`Cocos Creator`
+- 一篇一主题，标题尽量说清楚「读者能获得什么」
+- 文章为空时，首页、文章、标签、归档页会自动显示空状态，不会出现空白区块
+
 ## 视觉定制
 
 设计令牌集中在 `src/styles/global.css` 顶部的 `@theme` 与 `.dark` 中，改一处即可全站生效：
