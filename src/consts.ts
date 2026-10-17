@@ -1,6 +1,6 @@
 // 站点基础信息：用于 Header、SEO、RSS、sitemap 与页脚。
 export const SITE_TITLE = "十五的博客";
-export const SITE_DESCRIPTION = "记录计算机、AI 与日常折腾的个人博客。";
+export const SITE_DESCRIPTION = "记录游戏开发、AI、Linux 与网络安全的学习笔记和日常折腾。";
 // 站点地址；部署后请保持与真实访问地址一致。
 // 也可用环境变量 SITE_URL 在构建时覆盖（GitHub Actions 中已设置）。
 export const SITE_URL = "https://blog.shiwu.dev";
@@ -69,7 +69,7 @@ export const HOME = {
     alt: "十五的头像",
   },
   motto: "把知识织成网，慢慢记录。",
-  description: "计算机学习者，关注 Rust、Linux、AI 与游戏开发。这里整理笔记，也记录一些日常折腾。",
+  description: "目前做 Cocos Creator 游戏开发，关注 AI、Linux、Rust 与网络安全。这里整理笔记，也记录一些日常折腾。",
   recentPostsLimit: 6,
 } as const;
 

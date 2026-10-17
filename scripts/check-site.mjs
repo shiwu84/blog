@@ -20,7 +20,7 @@ const home = await get("/");
 check("首页 200 且标题为「十五的博客」", home.includes("<title>十五的博客</title>"));
 check("首页使用个人头像 /avatar.svg", home.includes("/avatar.svg"));
 check("文字雪背景动画已渲染", home.includes('id="text-snow-canvas"'));
-check("首页文案已个人化", home.includes("计算机学习者"));
+check("首页文案已个人化", home.includes("Cocos Creator"));
 check("首页显示第一篇文章", home.includes(POST_TITLE));
 check("页脚 GitHub 链接", home.includes("https://github.com/shiwu84"));
 check("页脚邮箱链接", home.includes("mailto:x7y7z84@gmail.com"));
