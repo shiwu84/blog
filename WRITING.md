@@ -30,6 +30,11 @@
 
 ## 让 AI 帮忙改写的 Prompt 模板
 
+如果想让 AI 按更严格的规则做去 AI 味，可以直接挂这个 skill：
+[MrGeDiao/shuorenhua](https://github.com/MrGeDiao/shuorenhua)（保事实、最小编辑、不概括重写）。
+
+不挂 skill 时，可以用下面这个模板：
+
 ```text
 请把下面这篇文章改写得像一个真实的人在讲自己的经历，而不是技术教程。
 

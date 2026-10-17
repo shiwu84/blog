@@ -1,6 +1,6 @@
 ---
 title: 和 DeepSeek Harness 一起，把博客部署到自己的服务器
-description: 本来只想把博客丢到服务器上，结果和 AI 折腾了一下午：Cloudflare、Caddy、GitHub Actions，还有一堆踩不完的坑。
+description: 主题是自己挑的，报错只有两次。记录和 AI 一起把 Astro 博客部署到自己的服务器：Cloudflare、Caddy、GitHub Actions，还有踩过的坑。
 pubDate: 2026-10-17
 collection: 折腾日志
 collectionDescription: 服务器、部署与各种工具折腾记录
@@ -12,15 +12,24 @@ tags:
   - DeepSeek Harness
 ---
 
-十月十七号下午，我第不知道多少次点开 GitHub Actions 的失败日志，屏幕上就一行字：
+十月十七号下午，我先把服务器上 Docker 跑的 memos 和 vaultwarden 清掉，然后开始折腾这个博客。
 
-```
+主题是我自己挑的。翻了几个 Astro 博客主题，最后选了 LogFlow Theme——灰色调、衬线正文，看着舒服。
+
+折腾到一半，GitHub Actions 第二次报错，屏幕上就一行：
+
+```text
 Process completed with exit code 255.
 ```
 
-博客本身早就在本地跑起来了。页面、文字雪、暗色模式，都调到自己满意了。唯独“部署”这一步卡着，而且我已经记不清这是今天第几次失败了。
+一共就失败了两次。第一次是 Secret 没配完，第二次是这个 255。
 
-这篇文章就是那半天的记录。过程不算顺利，不过最后跑通了——现在写完文章 push 一下，十来秒后网站上就能看到。
+<figure>
+  <img src="/images/deploy/timeline.svg" alt="2026 年 10 月 17 日下午的部署流程：清理 Docker 服务、选定主题、配置 Cloudflare 与 Caddy、两次失败、部署成功" />
+  <figcaption>图 1：那天下午的流程</figcaption>
+</figure>
+
+现在写完文章 push 一下，十来秒后网站上就能看到。
 
 ## 我本来差点就用 Pages 了
 
@@ -45,7 +54,7 @@ flowchart TD
     G --> H["Cloudflare：DNS + CDN"]
 ```
 
-拆开看其实就四件事：Cloudflare 负责域名解析，Caddy 负责 HTTPS 和静态文件，GitHub Actions 负责构建，一把 SSH 密钥负责把两边接起来。
+拆开看就四件事：Cloudflare 负责域名解析，Caddy 负责 HTTPS 和静态文件，GitHub Actions 负责构建，一把 SSH 密钥负责把两边接起来。
 
 ## 域名：先别急着开橙色云
 
@@ -101,15 +110,20 @@ handle_errors {
 
 第一次失败，是因为 Secret 还没填完，`Setup SSH agent` 直接报错。这个好办。
 
-第二次失败，就是开头那个 `exit 255` 了。我一开始怀疑是密钥格式问题，把 `authorized_keys` 翻来覆去检查了两遍，还重新生成了一次密钥。折腾半天，问题根本不在那。
+改完再推，第二次失败就是开头那个 `exit 255`。我一开始怀疑是密钥格式问题，把 `authorized_keys` 翻来覆去检查了两遍，还重新生成了一次密钥。折腾半天，问题根本不在那。
 
 AI 让我把 `Test SSH connection` 这一步的完整日志拉出来。日志最后一行是：
 
-```
+```text
 No ED25519 host key is known for ... and you have requested strict checking.
 ```
 
 原来是我填的 `SSH_KNOWN_HOSTS` 里少了一行 ED25519 主机密钥，而且从 Windows 复制过来时还带了 CRLF 换行，OpenSSH 根本匹配不上。
+
+<figure>
+  <img src="/images/deploy/terminal-errors.svg" alt="两次失败的终端日志示意图：缺少 ssh-private-key，以及 ED25519 主机密钥不匹配导致 Host key verification failed" />
+  <figcaption>图 2：两次失败的关键日志（示意）</figcaption>
+</figure>
 
 最后的修法是写入前先去掉 `\r`，再用 `ssh-keyscan` 补全缺的密钥类型：
 
@@ -165,6 +179,11 @@ sequenceDiagram
 ```
 
 看着 Actions 变绿、刷新后文章出现在网站上，确实挺爽的。前面那些 403、255 和空白页，好像也值了。
+
+<figure>
+  <img src="/images/deploy/github-actions-runs.png" alt="GitHub Actions 的运行记录页面：部署成功的运行显示绿色对勾，列表下方保留着两次失败的记录" />
+  <figcaption>图 3：部署成功后的 Actions 页面</figcaption>
+</figure>
 
 ## 如果重来一次
 
