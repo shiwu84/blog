@@ -1,6 +1,6 @@
 ---
 title: 和 DeepSeek Harness 一起，把博客部署到自己的服务器
-description: 用 Cloudflare + Caddy + GitHub Actions，把 Astro 博客自动部署到自己的 Ubuntu 服务器。记录完整流程、踩过的坑，以及 AI 在其中的真实作用。
+description: 本来只想把博客丢到服务器上，结果和 AI 折腾了一下午：Cloudflare、Caddy、GitHub Actions，还有一堆踩不完的坑。
 pubDate: 2026-10-17
 collection: 折腾日志
 collectionDescription: 服务器、部署与各种工具折腾记录
@@ -12,23 +12,27 @@ tags:
   - DeepSeek Harness
 ---
 
-博客搭起来容易，但"写完文章、推一下代码，网站就自动更新"这件事，中间还有不少活要干：域名解析、服务器配置、HTTPS 证书、构建流水线、部署权限……
+十月十七号下午，我第不知道多少次点开 GitHub Actions 的失败日志，屏幕上就一行字：
 
-这篇文章记录我把一个 Astro 博客部署到自己 Ubuntu 服务器的完整过程。整个过程是**和 DeepSeek Harness 一起完成的**——它负责查资料、写配置、读报错、改代码，我负责提供服务器、下判断、以及在云控制台点按钮。
+```
+Process completed with exit code 255.
+```
 
-## 为什么不用现成托管
+博客本身早就在本地跑起来了。页面、文字雪、暗色模式，都调到自己满意了。唯独“部署”这一步卡着，而且我已经记不清这是今天第几次失败了。
 
-一开始我也想过 GitHub Pages、Cloudflare Pages 这类方案：免费、零运维，对纯静态博客来说完全够用。
+这篇文章就是那半天的记录。过程不算顺利，不过最后跑通了——现在写完文章 push 一下，十来秒后网站上就能看到。
 
-但我本来就有一台云服务器，上面跑着一些自建服务。把博客也放进去，好处是：
+## 我本来差点就用 Pages 了
 
-- 域名、CDN、证书、部署全链路都经手一遍，出了问题知道去哪里查；
-- 不依赖某个平台的构建额度或政策；
-- 以后想加访问统计、评论、图片处理之类的东西，服务器上都能自己折腾。
+一开始想得很简单：静态博客，扔 GitHub Pages 或者 Cloudflare Pages 上不就行了，免费、不用管服务器。
 
-代价也明确：多了一台需要维护的机器，安全配置、证书续期、备份都要自己操心。**如果你只是想安静写字，付费托管更省事**；这篇文章更适合"想顺便学点运维"的人。
+后来还是改了主意。原因有两个：一是我本来就有台云服务器，上面跑着几个自建服务；二是我确实想把这套东西完整走一遍，不然以后哪里出问题都不知道该从哪查。
 
-## 最终架构
+说白了，一半是需求，一半是想折腾。
+
+代价也很实在：证书、权限、备份、安全，全都变成自己的事。如果你只是想安安静静写点东西，别学我。
+
+## 最后长这样
 
 ```mermaid
 flowchart TD
@@ -41,125 +45,73 @@ flowchart TD
     G --> H["Cloudflare：DNS + CDN"]
 ```
 
-拆开看就四件事：
+拆开看其实就四件事：Cloudflare 负责域名解析，Caddy 负责 HTTPS 和静态文件，GitHub Actions 负责构建，一把 SSH 密钥负责把两边接起来。
 
-1. **Cloudflare** 管域名解析，顺便做 CDN；
-2. **Caddy** 做静态文件服务器，自动申请和续期 HTTPS 证书；
-3. **GitHub Actions** 负责构建，把产物同步到服务器；
-4. **一个部署密钥**让 Actions 能以低权限登录服务器。
+## 域名：先别急着开橙色云
 
-## 第一步：域名解析
+在 Cloudflare 加一条 A 记录，指向服务器公网 IP。这个没什么好说的。
 
-在 Cloudflare 的 DNS 里加一条 A 记录，指向服务器公网 IP：
+关键是代理状态。我一开始顺手就开了橙云（Proxied），结果 Caddy 申请证书的时候一直失败。后来把代理切回灰云（DNS only），证书几分钟就签下来了，再切回橙云、SSL/TLS 模式改成 **Full (strict)**，一切正常。
 
-| 类型 | 名称 | 内容 | 代理状态 |
-| --- | --- | --- | --- |
-| A | blog | `<服务器公网 IP>` | 先 DNS only，之后可开 Proxied |
+这个顺序是 AI 提醒我的。它当时说“你先把灰云跑通再考虑代理”，我照做了。事后想想确实是这个道理，只是我一开始太想一步到位。
 
-**代理状态建议先灰云（DNS only）**。原因是 Caddy 拿证书要靠 ACME 校验，Cloudflare 代理会转发校验请求，但如果你开了"Always Use HTTPS"之类的重定向规则，校验可能被提前中断。等证书签发成功，再切橙云并把 SSL/TLS 模式设为 **Full (strict)**，这套流程最稳。
+## 服务器：一个 403 换来的 o+x
 
-## 第二步：服务器准备
+部署目录放在 `/home/shiwu/blog`。不用 root 目录，也不用 `/var/www`，就放在自己用户下面。
 
-服务器是 Ubuntu 24.04，root 登录默认关闭，用一个有 sudo 权限的普通账号操作。部署目录放在 `/home/shiwu/blog`，不用 root 目录，也不用 `/var/www`。
+然后 Caddy 返回了 403。
 
-```bash
-mkdir -p /home/shiwu/blog
-chmod 755 /home/shiwu/blog
-```
-
-这里有个容易忽略的细节：站点目录在 `/home` 下时，Caddy 的运行用户（`caddy`）需要能**穿过**家目录才能读到里面的文件。如果家目录权限是 `drwxr-x---`，Caddy 会返回 403。解决方法是给家目录加上 `o+x`（只允许进入，不允许列目录）：
+排查了一会儿才明白：站点在 `/home` 下面，Caddy 的运行用户需要能**穿过**家目录才能读到里面的文件。家目录默认是 `drwxr-x---`，Caddy 进不去。
 
 ```bash
 chmod o+x /home/shiwu
 ```
 
-## 第三步：Caddy 配置
+只允许进入，不允许列目录。改完之后 403 就没了。
 
-服务器上的 Caddy 用 `conf.d` 分片管理站点：主 Caddyfile 只负责引入，具体站点配置放在单独文件里。
+这种问题就属于“不知道的话能卡半天，知道了就是一行命令”。
+
+## Caddy：conf.d 和那个不生效的 404
+
+服务器上的 Caddy 用 conf.d 分片管理站点，主 Caddyfile 只负责引入：
 
 ```caddyfile
 # /etc/caddy/Caddyfile
 import /etc/caddy/conf.d/*
 ```
 
+站点配置单独放在 `/etc/caddy/conf.d/blog`。缓存策略、安全头这些是常规操作，真正让我踩坑的是 404。
+
+我把 `404.html` 放进了站点根目录，访问一个不存在的地址，返回的却是一片空白。查文档才发现，Caddy 的 `file_server` 不会像 nginx 那样自动寻找 404 页面，必须显式配置：
+
 ```caddyfile
-# /etc/caddy/conf.d/blog
-blog.shiwu.dev {
-	root * /home/shiwu/blog
-	encode zstd gzip
-	file_server
-
-	@immutable path /_astro/*
-	header @immutable Cache-Control "public, max-age=31536000, immutable"
-
-	@html path / *.html
-	header @html Cache-Control "public, max-age=0, must-revalidate"
-
-	header {
-		X-Content-Type-Options nosniff
-		X-Frame-Options DENY
-		Referrer-Policy strict-origin-when-cross-origin
-		-Server
-	}
-
-	handle_errors {
-		rewrite * /404.html
-		file_server
-	}
+handle_errors {
+    rewrite * /404.html
+    file_server
 }
 ```
 
-几个设计考虑：
+加完这段，自定义 404 才生效。
 
-- `/_astro/*` 下的资源带内容 hash，可以放心长缓存；HTML 则每次回源校验，保证发布后立即生效。
-- **404 页面必须写 `handle_errors`**。Caddy 的 `file_server` 不会像 nginx 那样自动寻找 `404.html`，不加这段的话自定义 404 永远不生效——这是一个我实际踩到的坑。
-- 关掉 `Server` 响应头，少暴露一点信息。
+## GitHub Actions：那个 255
 
-## 第四步：部署密钥与 GitHub Actions
+这是整晚最折腾的部分。
 
-Actions 需要 SSH 登录服务器，所以生成一对专用的 ed25519 密钥：
+流程本身不复杂：GitHub Actions 构建完之后，用 rsync 通过 SSH 把 `dist/` 同步到服务器。需要生成一对专用密钥，公钥放到服务器 `authorized_keys`，私钥和服务器地址放进仓库 Secrets。
 
-```bash
-ssh-keygen -t ed25519 -C "github-actions-blog" -f ~/.ssh/blog_deploy -N ""
-```
+第一次失败，是因为 Secret 还没填完，`Setup SSH agent` 直接报错。这个好办。
 
-把公钥写进服务器的 `authorized_keys`，并加上 `restrict` 限制（禁止端口转发、X11 转发等，只保留命令执行，rsync 需要）：
+第二次失败，就是开头那个 `exit 255` 了。我一开始怀疑是密钥格式问题，把 `authorized_keys` 翻来覆去检查了两遍，还重新生成了一次密钥。折腾半天，问题根本不在那。
+
+AI 让我把 `Test SSH connection` 这一步的完整日志拉出来。日志最后一行是：
 
 ```
-restrict ssh-ed25519 AAAA... github-actions-blog
+No ED25519 host key is known for ... and you have requested strict checking.
 ```
 
-私钥、服务器地址、端口、部署目录这些配置进 GitHub 仓库的 Secrets，工作流核心就三步：
+原来是我填的 `SSH_KNOWN_HOSTS` 里少了一行 ED25519 主机密钥，而且从 Windows 复制过来时还带了 CRLF 换行，OpenSSH 根本匹配不上。
 
-```yaml
-- name: Sync dist to server
-  run: |
-    PORT="${SSH_PORT:-22}"
-    TARGET="${DEPLOY_PATH%/}/"
-    rsync -az --delete --chmod=D755,F644 \
-      -e "ssh -p ${PORT} -o BatchMode=yes -o ConnectTimeout=20" \
-      ./dist/ "${SSH_USER}@${SSH_HOST}:${TARGET}"
-```
-
-`--delete` 保证服务器上的文件和构建产物完全一致：删掉的文章、过期的资源都会被清理。
-
-## 踩坑记录
-
-这部分可能比流程本身更有用。
-
-### 1. `scp`/`ssh` 明明装了却提示找不到
-
-Windows 自带 OpenSSH，但在某些终端里 PATH 没生效。用完整路径即可：
-
-```powershell
-& "$env:WINDIR\System32\OpenSSH\scp.exe" -r .\deploy .\blog_deploy.pub user@<服务器IP>:~/
-```
-
-### 2. `Host key verification failed`
-
-工作流第一次跑，`exit code 255`，日志里写着 `No ED25519 host key is known for ... and you have requested strict checking`。
-
-原因是 `SSH_KNOWN_HOSTS` 这个 Secret 里主机密钥不完整或带了 Windows 的 CRLF 换行，导致 OpenSSH 匹配不上。修复方式是**在写入 known_hosts 前去掉 `\r`**，并用 `ssh-keyscan` 补全缺失的密钥类型：
+最后的修法是写入前先去掉 `\r`，再用 `ssh-keyscan` 补全缺的密钥类型：
 
 ```bash
 printf '%s\n' "${SSH_KNOWN_HOSTS}" | tr -d '\r' > ~/.ssh/known_hosts
@@ -167,48 +119,37 @@ ssh-keyscan -p "$PORT" "$SSH_HOST" 2>/dev/null | grep -v '^#' >> ~/.ssh/known_ho
 sort -u -o ~/.ssh/known_hosts ~/.ssh/known_hosts
 ```
 
-更稳妥的做法是把服务器主机密钥的 SHA256 指纹也存成 Secret，在连接前做一次固定校验。
+这件事给我一个教训：**看到 255，先去读日志最后一行，别急着怀疑自己**。
 
-### 3. 自定义 404 不生效
+## 顺手修的几个小问题
 
-Caddy 没有自动使用 `404.html` 的行为，必须显式配置 `handle_errors`（见上面的 Caddyfile）。
+- `scp` 明明装了却提示找不到，最后用完整路径解决的：`C:\WINDOWS\System32\OpenSSH\scp.exe`。
+- 关于页的邮箱显示成 `[email protected]`，刷新一下又正常。是 Cloudflare 的邮箱混淆和 Astro 的无刷新换页打架，后来加了个解码兜底。
+- 手机上看首页的贡献图被裁掉一截。最后改成桌面显示一年、手机显示半年，格子按容器宽度自适应。
 
-### 4. Cloudflare 邮箱混淆 + 无刷新换页
+都是小问题，但每一个都能单独耗掉半小时。
 
-页面里的邮箱显示成了 `[email protected]`，刷新后又正常。原因是 Cloudflare 的「邮箱地址混淆」会把邮箱替换成加密占位符，靠它注入的脚本解码；而博客用了 Astro 的 ClientRouter，换页是前端完成的，Cloudflare 的脚本不会重新执行。
+## AI 帮了什么，没帮什么
 
-两种处理：关掉 Cloudflare 的邮箱混淆（推荐，反正邮箱本来就是公开的），或者在自己的脚本里加一段兜底解码，在每次 `astro:page-load` 后把占位符还原。
+标题里提了 DeepSeek Harness，是因为它在这件事里确实不只是“帮我写几行配置”。
 
-### 5. 移动端的贡献图被裁切
+**它做得好的是读日志和写配置。** 比如 255 那次，我还在怀疑密钥，它已经从上一条报错里挑出 known_hosts 的问题了。Caddyfile 和工作流也是它先起草，我再按自己的情况改。
 
-首页那张 GitHub 贡献图在手机上显示不全。根本原因是它按固定像素排了 54 列，窄屏放不下只能横向滚动，看起来就像被切掉。
+**它也会带错方向。** 中间它建议我直接开橙云，我照做，证书失败，又切回灰云。后来想想，它一开始就说过“先灰云”，是我自己没听。
 
-最后的方案是：桌面显示完整一年，手机显示最近半年，并用 CSS 容器查询按容器宽度动态计算格子大小，保证两套布局都刚好完整显示。
+**有些事它替不了我。** 在 Cloudflare 面板点按钮、在服务器上跑 sudo、把私钥粘进 GitHub Secrets——这些都得自己来。
 
-## AI 在这件事里到底做了什么
-
-标题里特意提了 DeepSeek Harness，是因为它的作用不只是"帮我写几行配置"。
-
-具体分工大概是：
-
-- **它做的**：写 Caddyfile 和工作流、设计部署脚本、根据报错日志定位问题（比如从 `exit code 255` 和一行 `No ED25519 host key` 判断出 known_hosts 的问题）、把"移动端显示不全"拆成容器查询方案并实现、检查线上页面返回的响应头和 HTML。
-- **我做的**：准备服务器和域名、在 Cloudflare 控制台点设置、在 GitHub 填 Secrets、执行需要 sudo 的命令、判断哪些方案适合自己。
-
-一个很实际的体会是：**AI 最擅长的不是从零生成大段代码，而是在配置和错误日志的夹缝里快速定位问题**。但前提是你要提供准确的上下文——完整的报错、截图、版本号、你做过什么操作。含糊地描述"部署失败了"，得到的也只能是含糊的建议。
-
-另外，AI 也有明确的边界：它不能替你在云控制台点按钮，也不能替你保管私钥。所有涉及凭据的操作，仍然需要自己完成，并且尽量不要把私钥、密码之类的东西直接贴进对话里。
+一个比较真实的感受：跟 AI 一起干活，像和一个记性很好、但不了解你现场环境的同事合作。你描述得越具体，它给的判断越准。只说一句“部署失败了”，得到的也只能是泛泛的建议。
 
 ## 现在的工作流
 
-日常发布已经简化成一句话：
+日常发布已经退化成一个动作：
 
 ```bash
 git add .
 git commit -m "新文章"
 git push
 ```
-
-背后的过程大概是这样：
 
 ```mermaid
 sequenceDiagram
@@ -223,15 +164,13 @@ sequenceDiagram
     CF-->>Me: 访问 https://blog.shiwu.dev
 ```
 
-GitHub Actions 自动构建、部署，十来秒后线上就更新了。需要排查问题的时候，服务器上看 Caddy 日志，GitHub 上看 Actions 日志，基本够用。
+看着 Actions 变绿、刷新后文章出现在网站上，确实挺爽的。前面那些 403、255 和空白页，好像也值了。
 
-## 给同样想自建博客的人
+## 如果重来一次
 
-如果看完你也想折腾，几条建议：
+- 先灰云，证书签好再开橙云。
+- 给部署单独建一个账号，别用自己有 sudo 的。
+- 遇到报错先读完整日志，最后一行往往就是答案。
+- 别在晚上折腾，报错会被放大。
 
-1. **先把最小链路跑通**：域名解析 → 服务器上一个静态页 → 访问成功，再往上加自动化。
-2. **证书先灰云签发**，成功后再开 Cloudflare 代理和 Full (strict)。
-3. **部署密钥最小权限**：能用独立部署账号就别用有 sudo 的账号。
-4. **别怕踩坑**，每一次 502、证书失败、权限错误，最后都会变成你对这套系统的一点理解。
-
-这套东西不复杂，但确实需要耐心。而把它跑通的那一刻，还是挺爽的。
+大概就这些。
