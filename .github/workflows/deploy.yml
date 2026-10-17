@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       SITE_URL: https://blog.shiwu.dev
@@ -51,7 +51,7 @@ jobs:
     name: Deploy to server
     if: github.event_name != 'pull_request'
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Download build output
@@ -60,17 +60,69 @@ jobs:
           name: site-dist
           path: dist
 
+      - name: Validate deploy secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          failed=0
+          for name in SSH_HOST SSH_USER DEPLOY_PATH SSH_KNOWN_HOSTS; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Secret ${name} 未配置或为空"
+              failed=1
+            fi
+          done
+          echo "SSH_HOST=[${SSH_HOST}]"
+          echo "SSH_USER=[${SSH_USER}]"
+          echo "SSH_PORT=[${SSH_PORT:-22}]"
+          echo "DEPLOY_PATH=[${DEPLOY_PATH}]"
+          printf '%s\n' "${SSH_KNOWN_HOSTS}" | grep -c . | xargs -I{} echo "SSH_KNOWN_HOSTS 非空行数: {}"
+          exit ${failed}
+
       - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Trust server host key
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          printf '%s\n' "${SSH_KNOWN_HOSTS}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+          echo "known_hosts 中的主机密钥指纹："
+          ssh-keygen -lf ~/.ssh/known_hosts || true
+          if ! grep -qF -- "${SSH_HOST}" ~/.ssh/known_hosts; then
+            echo "::error::SSH_KNOWN_HOSTS 中找不到主机 [${SSH_HOST}]。请用同一个地址（IP 或域名）执行 ssh-keyscan -p ${SSH_PORT:-22} 后重新填 Secret。"
+            exit 1
+          fi
+          echo "SSH_KNOWN_HOSTS 与 SSH_HOST 匹配"
+
+      - name: Test SSH connection
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          echo "尝试连接 ${SSH_USER}@${SSH_HOST}:${PORT}"
+          set +e
+          output=$(ssh -v -p "${PORT}" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            -o StrictHostKeyChecking=yes \
+            "${SSH_USER}@${SSH_HOST}" \
+            "echo CONNECTED; whoami; ls -ld '${DEPLOY_PATH}'" 2>&1)
+          code=$?
+          echo "${output}" | tail -n 60
+          exit ${code}
 
       - name: Sync dist to server
         env:
@@ -81,8 +133,10 @@ jobs:
         run: |
           PORT="${SSH_PORT:-22}"
           TARGET="${DEPLOY_PATH%/}/"
-          rsync -az --delete --chmod=D755,F644 -e "ssh -p ${PORT}" ./dist/ "${SSH_USER}@${SSH_HOST}:${TARGET}"
+          rsync -az --delete --chmod=D755,F644 \
+            -e "ssh -p ${PORT} -o BatchMode=yes -o ConnectTimeout=20" \
+            ./dist/ "${SSH_USER}@${SSH_HOST}:${TARGET}"
 
       - name: Verify site is reachable
         run: |
-          curl -sSfL -o /dev/null --max-time 15 -w 'HTTP %{http_code}\n' https://blog.shiwu.dev/ || true
+          curl -sSfL -o /dev/null --max-time 20 -w 'HTTP %{http_code}\n' https://blog.shiwu.dev/ || true
