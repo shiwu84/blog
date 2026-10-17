@@ -112,10 +112,12 @@ const legendCellStyle = { width: "max(6px, var(--cal-cell))", height: "max(6px, 
 
   @supports (container-type: inline-size) {
     .cal-row {
-      /* 可用宽度 = 容器宽度 - 星期标尺 - 间距；再均分给所有周，上限 11px */
+      /* 可用宽度 = 容器宽度 - 星期标尺 - 间距；再均分给所有周，上限 11px。
+         末尾再留 4px 安全余量：单元格宽度是小数，逐列取整后总宽可能比容器多出
+         不到 1px，桌面端就会出现没必要的横向滚动。 */
       --cal-cell: min(
         11px,
-        calc((100cqw - 1.75rem - (var(--cal-weeks) - 1) * var(--cal-gap-x)) / var(--cal-weeks))
+        calc((100cqw - 1.75rem - (var(--cal-weeks) - 1) * var(--cal-gap-x) - 4px) / var(--cal-weeks))
       );
     }
   }
