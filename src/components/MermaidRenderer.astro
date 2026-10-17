@@ -1,0 +1,112 @@
+---
+// Mermaid 图表渲染器（按需加载）：
+// 只有当文章里出现 ```mermaid 代码块时才会 import("mermaid")，其他页面不加载。
+---
+<script>
+  type Diagram = {
+    element: HTMLElement;
+    source: string;
+    renderedTheme: "light" | "dark" | null;
+  };
+
+  let mermaidPromise: Promise<typeof import("mermaid").default> | null = null;
+  let diagrams: Diagram[] = [];
+  let observer: MutationObserver | null = null;
+  let renderTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const loadMermaid = () => {
+    mermaidPromise ??= import("mermaid").then((module) => module.default);
+    return mermaidPromise;
+  };
+
+  const themeVariables = (dark: boolean) => ({
+    background: "transparent",
+    primaryColor: dark ? "#26282b" : "#eceef0",
+    primaryTextColor: dark ? "#ececee" : "#17181a",
+    primaryBorderColor: dark ? "#4a4e55" : "#b9bcc2",
+    lineColor: dark ? "#8b8d93" : "#74777d",
+    secondaryColor: dark ? "#1f2023" : "#f5f6f7",
+    tertiaryColor: dark ? "#18191b" : "#fafafa",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif",
+    fontSize: "14px",
+  });
+
+  const currentTheme = (): "light" | "dark" =>
+    document.documentElement.classList.contains("dark") ? "dark" : "light";
+
+  const renderAll = async () => {
+    if (diagrams.length === 0) return;
+    const theme = currentTheme();
+    if (diagrams.every((item) => item.renderedTheme === theme)) return;
+
+    const showFallback = (reason: unknown) => {
+      console.warn("[mermaid] 加载失败，回退为代码块", reason);
+      for (const item of diagrams) {
+        const fallback = document.createElement("pre");
+        fallback.textContent = item.source;
+        item.element.replaceChildren(fallback);
+        item.renderedTheme = theme;
+      }
+    };
+
+    let mermaid: typeof import("mermaid").default;
+    try {
+      mermaid = await loadMermaid();
+    } catch (error) {
+      showFallback(error);
+      return;
+    }
+
+    try {
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        theme: "base",
+        themeVariables: themeVariables(theme === "dark"),
+      });
+    } catch (error) {
+      showFallback(error);
+      return;
+    }
+
+    let index = 0;
+    for (const item of diagrams) {
+      try {
+        const { svg } = await mermaid.render(`mermaid-${index}-${Date.now()}`, item.source);
+        item.element.innerHTML = svg;
+      } catch (error) {
+        console.warn("[mermaid] 图表渲染失败", error);
+        const fallback = document.createElement("pre");
+        fallback.textContent = item.source;
+        item.element.replaceChildren(fallback);
+      }
+      item.renderedTheme = theme;
+      index += 1;
+    }
+  };
+
+  const setup = () => {
+    observer?.disconnect();
+    observer = null;
+    diagrams = Array.from(document.querySelectorAll<HTMLElement>('pre[data-language="mermaid"]')).map((pre) => {
+      const container = document.createElement("div");
+      container.className = "mermaid-diagram";
+      const source = pre.textContent ?? "";
+      pre.replaceWith(container);
+      return { element: container, source, renderedTheme: null };
+    });
+
+    if (diagrams.length === 0) return;
+
+    // 明暗主题切换后重新渲染，让图表配色跟随站点
+    observer = new MutationObserver(() => {
+      if (renderTimer) clearTimeout(renderTimer);
+      renderTimer = setTimeout(() => { void renderAll(); }, 120);
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
+    void renderAll();
+  };
+
+  document.addEventListener("astro:page-load", setup);
+</script>

@@ -6,6 +6,9 @@ dist/
 # dependencies
 node_modules/
 
+# local npm cache (used when installing in restricted environments)
+.npm-cache/
+
 # logs
 npm-debug.log*
 yarn-debug.log*

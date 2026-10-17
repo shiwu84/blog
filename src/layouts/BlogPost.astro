@@ -5,6 +5,7 @@ import Badge from "../components/Badge.astro";
 import CommentSection from "../components/CommentSection.astro";
 import FormattedDate from "../components/FormattedDate.astro";
 import Meta from "../components/Meta.astro";
+import MermaidRenderer from "../components/MermaidRenderer.astro";
 import Prose from "../components/Prose.astro";
 import Box from "../components/layout/Box.astro";
 import Cell from "../components/layout/Cell.astro";
@@ -55,5 +56,6 @@ const { title, description, pubDate, updatedDate, heroImage, collection, tags = 
   <Prose>
     <slot />
   </Prose>
+  <MermaidRenderer />
   {enableComments && <CommentSection />}
 </SiteLayout>

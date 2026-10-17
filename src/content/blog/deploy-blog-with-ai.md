@@ -30,19 +30,15 @@ tags:
 
 ## 最终架构
 
-```
-本地写 Markdown
-      │ git push
-      ▼
-GitHub Actions
-  npm ci → astro check → astro build → 上传 dist 制品
-      │ rsync over SSH（用部署密钥）
-      ▼
-Ubuntu 24.04 服务器
-  /home/shiwu/blog ← Caddy（静态托管 + 自动 HTTPS）
-      ▲
-      │ A 记录 / 可选代理
-Cloudflare（DNS + CDN + 边缘证书）
+```mermaid
+flowchart TD
+    A["本地写 Markdown"] -->|git push| B["GitHub Actions"]
+    B --> C["npm ci / astro check / astro build"]
+    C --> D["上传 dist 制品"]
+    D -->|rsync over SSH| E["Ubuntu 24.04 服务器"]
+    E --> F["/home/shiwu/blog"]
+    F --> G["Caddy：静态托管 + 自动 HTTPS"]
+    G --> H["Cloudflare：DNS + CDN"]
 ```
 
 拆开看就四件事：
@@ -210,6 +206,21 @@ Caddy 没有自动使用 `404.html` 的行为，必须显式配置 `handle_error
 git add .
 git commit -m "新文章"
 git push
+```
+
+背后的过程大概是这样：
+
+```mermaid
+sequenceDiagram
+    actor Me as 我
+    participant GH as GitHub Actions
+    participant Server as Ubuntu 服务器
+    participant CF as Cloudflare
+    Me->>GH: git push
+    GH->>GH: npm ci / astro check / astro build
+    GH->>Server: rsync dist/（SSH）
+    Server-->>CF: 源站内容更新
+    CF-->>Me: 访问 https://blog.shiwu.dev
 ```
 
 GitHub Actions 自动构建、部署，十来秒后线上就更新了。需要排查问题的时候，服务器上看 Caddy 日志，GitHub 上看 Actions 日志，基本够用。

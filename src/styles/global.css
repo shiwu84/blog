@@ -300,3 +300,21 @@
 .dark .prose .astro-code span {
   color: var(--shiki-dark);
 }
+
+/* Mermaid 图表（由 MermaidRenderer 在客户端渲染） */
+.prose .mermaid-diagram {
+  display: block;
+  margin-block: 1.75em;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.prose .mermaid-diagram svg {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+}
+
+.prose .mermaid-diagram pre {
+  text-align: left;
+}
