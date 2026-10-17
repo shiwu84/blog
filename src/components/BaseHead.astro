@@ -52,27 +52,6 @@ const { title, description, image, type = 'website' } = Astro.props;
 
 <ClientRouter />
 
-<script>
-	// Cloudflare 的「邮箱地址混淆」会把页面里的邮箱替换成 __cf_email__ 占位元素，
-	// 再由 Cloudflare 的脚本解码。使用 ClientRouter 无刷新换页时该脚本不会重新执行，
-	// 导致邮箱短暂显示为 [email protected]。这里在每次页面加载后手动解码作兜底。
-	const decodeCloudflareEmails = () => {
-		document.querySelectorAll<HTMLElement>('.__cf_email__').forEach((element) => {
-			const encoded = element.getAttribute('data-cfemail');
-			if (!encoded) return;
-			const email = encoded
-				.match(/.{2}/g)
-				?.map((hex) => String.fromCharCode(parseInt(hex, 16)))
-				.join('');
-			if (!email) return;
-			element.textContent = email;
-			element.closest('a')?.setAttribute('href', `mailto:${email}`);
-		});
-	};
-	decodeCloudflareEmails();
-	document.addEventListener('astro:page-load', decodeCloudflareEmails);
-</script>
-
 <!-- 规范链接 -->
 <link rel="canonical" href={canonicalURL} />
 

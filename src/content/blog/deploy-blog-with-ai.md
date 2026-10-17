@@ -145,7 +145,7 @@ sort -u -o ~/.ssh/known_hosts ~/.ssh/known_hosts
 ## 顺手修的几个小问题
 
 - `scp` 明明装了却提示找不到，最后用完整路径解决的：`C:\WINDOWS\System32\OpenSSH\scp.exe`。
-- 关于页的邮箱会显示成 `[email protected]`，刷新一下又正常。原因是 Cloudflare 的邮箱混淆和 Astro 的无刷新换页打架，后来加了个解码兜底。
+- 关于页的邮箱会显示成 `[email protected]`，刷新一下又正常。原因是 Cloudflare 的邮箱混淆把邮箱换成了占位符，只在整页加载时由脚本解码；把 Cloudflare 面板里的邮箱混淆关掉就正常了。
 
 都是小问题，有 AI 帮忙查，很快就解决了。
 
