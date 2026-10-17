@@ -1,24 +1,28 @@
 #!/usr/bin/env bash
 # 一次性初始化 Ubuntu 24.04 服务器（以有 sudo 权限的账号执行，例如 shiwu）。
 #
-# 默认模式：独立 deploy 用户 + /var/www/blog
+# 模式一：独立 deploy 用户 + /var/www/blog + 独立 Caddyfile
 #   sudo DEPLOY_PUBKEY="$(cat ~/.ssh/blog_deploy.pub)" CADDYFILE_SRC=./Caddyfile bash setup-server.sh
 #
-# 全部放在 shiwu 用户下（不用 root、不用 /var/www）：
+# 模式二：全部放在 shiwu 用户下 + 独立 Caddyfile
 #   sudo WEB_ROOT=/home/shiwu/blog DEPLOY_USER=shiwu \
 #     DEPLOY_PUBKEY="$(cat ~/blog_deploy.pub)" CADDYFILE_SRC=./Caddyfile bash setup-server.sh
 #
-# 已安装 Caddy、只想做其余初始化：
+# 模式三：使用 /etc/caddy/conf.d 分片（推荐给「主 Caddyfile + conf.d」的服务器）
 #   sudo SKIP_CADDY=1 WEB_ROOT=/home/shiwu/blog DEPLOY_USER=shiwu \
-#     DEPLOY_PUBKEY="$(cat ~/blog_deploy.pub)" CADDYFILE_SRC=./Caddyfile bash setup-server.sh
+#     DEPLOY_PUBKEY="$(cat ~/blog_deploy.pub)" \
+#     CADDY_SITE_CONF=/etc/caddy/conf.d/blog SITE_CONF_SRC=./site.conf \
+#     bash setup-server.sh
 #
 # 可选环境变量：
-#   DOMAIN        默认 blog.shiwu.dev
-#   WEB_ROOT      站点根目录，默认 /var/www/blog
-#   DEPLOY_USER   GitHub Actions 登录用户，默认 deploy（不存在会自动创建）
-#   DEPLOY_PUBKEY GitHub Actions 部署公钥（传入则自动写入该用户 authorized_keys）
-#   CADDYFILE_SRC Caddyfile 路径；传入则安装到 /etc/caddy/Caddyfile，并自动替换 root 路径
-#   SKIP_CADDY=1  跳过 Caddy 安装（用于 Caddy 已安装的情况）
+#   DOMAIN          默认 blog.shiwu.dev
+#   WEB_ROOT        站点根目录，默认 /var/www/blog
+#   DEPLOY_USER     GitHub Actions 登录用户，默认 deploy（不存在会自动创建）
+#   DEPLOY_PUBKEY   GitHub Actions 部署公钥
+#   CADDYFILE_SRC   整份 Caddyfile 路径（模式一/二）
+#   CADDY_SITE_CONF 站点分片路径，如 /etc/caddy/conf.d/blog（模式三）
+#   SITE_CONF_SRC   站点分片源文件，默认 ./site.conf
+#   SKIP_CADDY=1    跳过 Caddy 安装
 set -euo pipefail
 
 DOMAIN="${DOMAIN:-blog.shiwu.dev}"
@@ -28,6 +32,13 @@ SKIP_CADDY="${SKIP_CADDY:-0}"
 
 log() { printf '\n==> %s\n' "$*"; }
 need_root() { [ "$(id -u)" -eq 0 ] || { echo "请使用 sudo 运行"; exit 1; }; }
+backup_file() {
+  if [ -f "$1" ]; then
+    local backup="$1.bak.$(date +%Y%m%d%H%M%S)"
+    cp "$1" "${backup}"
+    echo "已备份 $1 -> ${backup}"
+  fi
+}
 
 need_root
 
@@ -69,10 +80,10 @@ fi
 
 if [ "${SKIP_CADDY}" = "1" ]; then
   log "跳过 Caddy 安装（SKIP_CADDY=1）"
-  if ! command -v caddy >/dev/null 2>&1; then
-    echo "警告：没有找到 caddy 命令，请确认 Caddy 已正确安装。"
-  else
+  if command -v caddy >/dev/null 2>&1; then
     echo "已检测到：$(caddy version 2>/dev/null | head -n 1)"
+  else
+    echo "警告：没有找到 caddy 命令，请确认 Caddy 已正确安装。"
   fi
 else
   log "安装 Caddy"
@@ -86,19 +97,46 @@ else
   apt-get install -y caddy
 fi
 
-if [ -n "${CADDYFILE_SRC:-}" ] && [ -f "${CADDYFILE_SRC}" ]; then
-  if [ -f /etc/caddy/Caddyfile ]; then
-    BACKUP="/etc/caddy/Caddyfile.bak.$(date +%Y%m%d%H%M%S)"
-    cp /etc/caddy/Caddyfile "${BACKUP}"
-    echo "已备份原 Caddyfile 到 ${BACKUP}"
+# ---- Caddy 配置：整份 Caddyfile 或 conf.d 分片 ----
+if [ -n "${CADDY_SITE_CONF:-}" ]; then
+  SITE_SRC="${SITE_CONF_SRC:-./site.conf}"
+  if [ ! -f "${SITE_SRC}" ]; then
+    echo "找不到站点分片源文件：${SITE_SRC}"
+    exit 1
   fi
-  log "安装 Caddyfile（站点根目录 -> ${WEB_ROOT}）"
-  mkdir -p /etc/caddy
-  cp "${CADDYFILE_SRC}" /etc/caddy/Caddyfile
-  sed -i "s|/var/www/blog|${WEB_ROOT}|g" /etc/caddy/Caddyfile
+  log "安装站点分片到 ${CADDY_SITE_CONF}（根目录 -> ${WEB_ROOT}）"
+  mkdir -p "$(dirname "${CADDY_SITE_CONF}")"
+  backup_file "${CADDY_SITE_CONF}"
+  cp "${SITE_SRC}" "${CADDY_SITE_CONF}"
+  sed -i "s|/var/www/blog|${WEB_ROOT}|g" "${CADDY_SITE_CONF}"
+
+  MAIN_CADDYFILE="/etc/caddy/Caddyfile"
+  if [ -f "${MAIN_CADDYFILE}" ]; then
+    if grep -Eq '^[[:space:]]*import[[:space:]]+.*conf\.d' "${MAIN_CADDYFILE}"; then
+      echo "主 Caddyfile 已有 conf.d 的 import"
+    else
+      backup_file "${MAIN_CADDYFILE}"
+      printf '\n# blog 站点分片\nimport /etc/caddy/conf.d/*\n' >> "${MAIN_CADDYFILE}"
+      echo "已在主 Caddyfile 追加：import /etc/caddy/conf.d/*"
+    fi
+  else
+    echo "警告：${MAIN_CADDYFILE} 不存在，请确认 Caddy 主配置文件位置"
+  fi
+
   if command -v caddy >/dev/null 2>&1; then
-    caddy fmt --overwrite /etc/caddy/Caddyfile || true
-    caddy validate --config /etc/caddy/Caddyfile || echo "Caddyfile 校验未通过，请检查上面的输出"
+    caddy validate --config "${MAIN_CADDYFILE}" || echo "Caddyfile 校验未通过，请检查上面的输出"
+  fi
+else
+  if [ -n "${CADDYFILE_SRC:-}" ] && [ -f "${CADDYFILE_SRC}" ]; then
+    log "安装整份 Caddyfile（站点根目录 -> ${WEB_ROOT}）"
+    mkdir -p /etc/caddy
+    backup_file /etc/caddy/Caddyfile
+    cp "${CADDYFILE_SRC}" /etc/caddy/Caddyfile
+    sed -i "s|/var/www/blog|${WEB_ROOT}|g" /etc/caddy/Caddyfile
+    if command -v caddy >/dev/null 2>&1; then
+      caddy fmt --overwrite /etc/caddy/Caddyfile || true
+      caddy validate --config /etc/caddy/Caddyfile || echo "Caddyfile 校验未通过，请检查上面的输出"
+    fi
   fi
 fi
 

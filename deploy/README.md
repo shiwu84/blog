@@ -84,6 +84,43 @@ curl -I https://blog.shiwu.dev      # Caddy 自动签发证书后返回 200/404
 ssh -i ~/.ssh/blog_deploy <部署用户>@<服务器IP>   # 本地测试部署用户能否登录
 ```
 
+### 使用 `/etc/caddy/conf.d` 分片（主 Caddyfile + conf.d 模式）
+
+如果服务器的主 Caddyfile 通过 `import /etc/caddy/conf.d/*` 组织站点，就**不要覆盖主配置**，改用分片方式：
+
+```bash
+cd ~/deploy
+sudo SKIP_CADDY=1 WEB_ROOT=/home/shiwu/blog DEPLOY_USER=shiwu \
+  DEPLOY_PUBKEY="$(cat ~/blog_deploy.pub)" \
+  CADDY_SITE_CONF=/etc/caddy/conf.d/blog SITE_CONF_SRC=./site.conf \
+  bash setup-server.sh
+```
+
+脚本会：
+
+- 把 `deploy/site.conf` 写到 `/etc/caddy/conf.d/blog`（已存在会先备份）
+- 自动把分片里的 root 路径替换成 `$WEB_ROOT`
+- 检查主 Caddyfile 是否有 conf.d 的 `import`，没有就备份后追加 `import /etc/caddy/conf.d/*`
+- 用主 Caddyfile 执行 `caddy validate`，失败会提示
+
+手动做法（等价）：
+
+```bash
+sudo mkdir -p /etc/caddy/conf.d
+sudo cp site.conf /etc/caddy/conf.d/blog
+# 如果 root 不是 /home/shiwu/blog，改这一行
+sudo sed -i 's|/home/shiwu/blog|/home/shiwu/blog|' /etc/caddy/conf.d/blog
+grep -n 'import' /etc/caddy/Caddyfile        # 确认有 import conf.d
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+```
+
+主 Caddyfile 里应当有类似：
+
+```caddyfile
+import /etc/caddy/conf.d/*
+```
+
 ## 3. Cloudflare 设置
 
 1. DNS → Records → Add record：`A`、`blog`、服务器公网 IP，Proxy 先选 **DNS only（灰云）**。
