@@ -1,0 +1,118 @@
+---
+// 正文配图灯箱：点击（或键盘 Enter/Space）放大查看，原生 <dialog> 实现。
+---
+
+<dialog
+  data-lightbox-dialog
+  class="fixed inset-0 m-0 h-full w-full max-h-none max-w-none border-0 bg-transparent p-0 backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+  aria-label="图片预览"
+>
+  <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 sm:p-8" data-lightbox-backdrop>
+    <img
+      data-lightbox-image
+      class="max-h-[80vh] max-w-[min(92vw,1200px)] rounded-box border border-border bg-surface object-contain shadow-2xl"
+      alt=""
+    />
+    <p data-lightbox-caption class="max-w-[80ch] text-center text-label text-white/85"></p>
+  </div>
+  <button
+    type="button"
+    data-lightbox-close
+    class="icon-button absolute right-3 top-3 z-10 border border-border bg-surface/85 text-heading backdrop-blur-sm sm:right-5 sm:top-5"
+    aria-label="关闭图片预览"
+  >
+    <svg class="size-4.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+  </button>
+</dialog>
+
+<script>
+  type LightboxParts = {
+    dialog: HTMLDialogElement;
+    image: HTMLImageElement;
+    caption: HTMLElement;
+    closeButton: HTMLButtonElement | null;
+    backdrop: HTMLElement | null;
+  };
+
+  let lastTrigger: HTMLElement | null = null;
+
+  const getParts = (): LightboxParts | null => {
+    const dialog = document.querySelector<HTMLDialogElement>("[data-lightbox-dialog]");
+    const image = dialog?.querySelector<HTMLImageElement>("[data-lightbox-image]");
+    const caption = dialog?.querySelector<HTMLElement>("[data-lightbox-caption]");
+    if (!dialog || !image || !caption) return null;
+    return {
+      dialog,
+      image,
+      caption,
+      closeButton: dialog.querySelector<HTMLButtonElement>("[data-lightbox-close]"),
+      backdrop: dialog.querySelector<HTMLElement>("[data-lightbox-backdrop]"),
+    };
+  };
+
+  const openLightbox = (trigger: HTMLImageElement) => {
+    const parts = getParts();
+    if (!parts) return;
+    const { dialog, image, caption, closeButton } = parts;
+
+    image.src = trigger.currentSrc || trigger.src;
+    image.alt = trigger.alt || "";
+    const figure = trigger.closest("figure");
+    const captionText = figure?.querySelector("figcaption")?.textContent?.trim() ?? "";
+    caption.textContent = captionText;
+    caption.hidden = captionText.length === 0;
+
+    if (!dialog.dataset.bound) {
+      dialog.dataset.bound = "true";
+      dialog.addEventListener("click", (event) => {
+        const target = event.target as Element | null;
+        if (target === dialog || target?.hasAttribute("data-lightbox-backdrop")) dialog.close();
+      });
+      closeButton?.addEventListener("click", () => dialog.close());
+      dialog.addEventListener("close", () => {
+        document.documentElement.style.removeProperty("overflow");
+        lastTrigger?.focus({ focusVisible: false } as FocusOptions);
+        lastTrigger = null;
+      });
+    }
+
+    lastTrigger = trigger;
+    document.documentElement.style.overflow = "hidden";
+    dialog.showModal();
+    closeButton?.focus();
+  };
+
+  const findTrigger = (target: EventTarget | null) => {
+    const element = target instanceof Element ? target : null;
+    const image = element?.closest<HTMLImageElement>(".prose figure img");
+    if (!image || image.closest("a")) return null;
+    return image;
+  };
+
+  const initImages = () => {
+    document.querySelectorAll<HTMLImageElement>(".prose figure img").forEach((image) => {
+      if (image.closest("a")) return;
+      image.tabIndex = 0;
+      image.setAttribute("role", "button");
+      if (!image.hasAttribute("aria-label")) {
+        image.setAttribute("aria-label", image.alt ? `查看大图：${image.alt}` : "查看大图");
+      }
+    });
+  };
+
+  document.addEventListener("click", (event) => {
+    const image = findTrigger(event.target);
+    if (image) openLightbox(image);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const image = findTrigger(event.target);
+    if (!image) return;
+    event.preventDefault();
+    openLightbox(image);
+  });
+
+  document.addEventListener("astro:page-load", initImages);
+  initImages();
+</script>

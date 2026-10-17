@@ -1,5 +1,5 @@
 ---
-type BoxTag = "div" | "section" | "header" | "article" | "aside";
+type BoxTag = "div" | "section" | "header" | "article" | "aside" | "footer";
 
 export interface Props {
   as?: BoxTag;
@@ -10,6 +10,6 @@ export interface Props {
 const { as: Tag = "div", class: className, ...attrs } = Astro.props;
 ---
 
-<Tag class:list={["min-w-0 divide-y divide-border overflow-hidden rounded-box border border-border glass", className]} {...attrs}>
+<Tag class:list={["card-sheen min-w-0 divide-y divide-border overflow-hidden rounded-box border border-border glass", className]} {...attrs}>
   <slot />
 </Tag>

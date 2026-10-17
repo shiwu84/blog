@@ -26,6 +26,21 @@ npm run dev       # 本地开发：http://localhost:4321
 
 > **Windows 沙箱兼容**：Vite 在 Windows 上会调用 `net use` 探测网络驱动器，在限制子进程的沙箱里会抛错导致构建失败。npm 脚本通过预加载 `scripts/net-use-shim.cjs` 给这条命令做了兜底；普通开发机和部署环境不受影响，想恢复纯 `astro` 命令直接改 `package.json` 即可。
 
+### 本地看效果
+
+```bash
+npm run dev   # http://localhost:4321
+```
+
+建议顺手检查这几处：
+
+- 首页：最新（或标记 `featured`）的文章会显示成精选大卡；头像有细描边；向下滚动后页头出现投影。
+- 文章页：宽屏（≥ 80rem）左侧有固定目录；窄屏在标题卡里折叠成「目录」，滚动时当前小节高亮。
+- 点正文图片会打开大图，`Esc` 或点背景关闭。
+- 切换明暗主题，部署流程图会换成暗色版本。
+- 文末有签名和 RSS 订阅；发布第二篇文章后会出现上一篇/下一篇与相关文章。
+- 滚动超过一屏后右下角出现「回到顶部」。
+
 ## 目录结构
 
 | 路径 | 用途 |
@@ -35,7 +50,8 @@ npm run dev       # 本地开发：http://localhost:4321
 | `src/content/about/index.md` | 关于页正文 |
 | `src/config/friend-links.ts` | 友链数据 |
 | `src/styles/global.css` | 设计令牌（Tailwind v4 `@theme`）与文章排版样式 |
-| `src/components/` | 页头、文字雪、GitHub 活跃度、Mermaid 渲染等组件 |
+| `src/assets/fonts/` | 正文衬线字体子集（Noto Serif SC 400） |
+| `src/components/` | 页头、文字雪、GitHub 活跃度、Mermaid 渲染、文章目录、图片灯箱等组件 |
 | `src/pages/` | 首页、文章、归档、专题/标签、友链、关于、RSS、搜索索引 |
 | `public/` | 头像、favicon、文章配图 |
 | `scripts/` | 站点自检脚本与 net-use shim |
@@ -70,6 +86,10 @@ npm run dev       # 本地开发：http://localhost:4321
 - **排版**：`--text-reading`（正文字号与行高）、`--container-page`（阅读区宽度）、`--radius-box`（卡片圆角）。
 - **文字雪**：`src/components/TextSnowCanvas.astro`，零依赖 2D canvas，远/近双层景深，颜色读取 `--ink-rgb` 并跟随明暗主题；系统开启「减少动态效果」时只做静态渲染。想调密度和速度，改组件里的 `POOL`（字库）、数量与 `speed` 区间。
 - **头像与 favicon**：`public/avatar.svg`、`public/favicon.svg`。
+- **文章阅读**：标题层级、自动目录（宽屏固定在左侧，窄屏折叠在标题卡内）、图片点击放大、文末签名与上一篇/下一篇/相关文章、回到顶部。
+- **字体**：正文使用自托管的 Noto Serif SC 400 子集（`src/assets/fonts/`，只含站内用到的字，约 170 KB），访客没装思源宋体也能看到一致的宋体排版。新增文章后如果出现子集里没有的字，会逐字回退到系统字体；想让新字也进入子集时运行 `python scripts/build-font-subset.py`（需先 `pip install fonttools brotli`）。
+- **暗色配图**：给 `<img>` 加 `data-dark-src="xxx-dark.svg"`（只写同目录文件名），主题切换时会自动换成暗色版；目前部署流程图有 `timeline-dark.svg`。
+- **首页精选**：首页会把最新一篇（或 Frontmatter 里标了 `featured: true` 的文章）显示成精选大卡，其余文章保持列表。
 
 ### 文章配图
 
@@ -96,7 +116,7 @@ pubDate: 2026-10-17
 ---
 ```
 
-可选字段：`updatedDate`、`tags`（数组）、`collection` / `collectionDescription`（专题）、`heroImage`（本地图片）、`enableComments`。
+可选字段：`updatedDate`、`tags`（数组）、`collection` / `collectionDescription`（专题）、`heroImage`（本地图片）、`featured`（首页精选大卡）、`enableComments`。
 
 ### 专题与标签约定
 

@@ -1,21 +1,48 @@
 ---
-import { SITE_TITLE } from "../consts";
+import { getCollection } from "astro:content";
 import Box from "../components/layout/Box.astro";
 import Cell from "../components/layout/Cell.astro";
+import { SITE_TITLE } from "../consts";
 import SiteLayout from "../layouts/SiteLayout.astro";
+import { sortByDateDesc } from "../utils/content";
 import { withBase } from "../utils/withBase";
+
+const posts = sortByDateDesc(await getCollection("blog"));
+const postHrefs = posts.map((post) => withBase(`/blog/${post.id}/`));
 ---
 
 <SiteLayout title={`页面不存在 | ${SITE_TITLE}`} description="你访问的页面不存在。">
   <Box>
-    <Cell variant="header">
-      <p class="text-label tabular-nums text-subtle">404</p>
-      <h1 class="mt-1 text-title text-heading">页面不存在</h1>
-      <p class="mt-1 text-body text-subtle">这个地址没有对应的内容，可能已经移动或删除。</p>
-    </Cell>
+    <div class="min-w-0 bg-surface-alt px-cell-x py-10 sm:py-14">
+      <p class="font-serif text-[2.75rem] leading-none tabular-nums tracking-tight text-heading sm:text-[3.5rem]">404</p>
+      <h1 class="mt-3 text-article text-heading">这一页走丢了</h1>
+      <p class="mt-2 max-w-[52ch] text-body text-subtle">这个地址没有对应的内容，可能已经移动或删除。你可以回到首页，或者随便翻一篇文章。</p>
+    </div>
     <Cell class="flex flex-wrap items-center gap-2">
       <a class="chip chip-link" href={withBase("/")}>返回首页</a>
       <a class="chip chip-link" href={withBase("/blog/")}>浏览文章</a>
+      {postHrefs.length > 0 && (
+        <a class="chip chip-link" href={postHrefs[0]} data-random-post data-hrefs={JSON.stringify(postHrefs)}>随便翻一篇</a>
+      )}
+      <span class="ml-auto text-label text-subtle">也可以按 <kbd class="chip min-w-5 justify-center bg-surface font-mono">/</kbd> 搜索全站</span>
     </Cell>
   </Box>
 </SiteLayout>
+
+<script>
+  const initRandomPost = () => {
+    document.querySelectorAll<HTMLAnchorElement>("[data-random-post]").forEach((link) => {
+      if (link.dataset.ready === "true") return;
+      link.dataset.ready = "true";
+      link.addEventListener("click", (event) => {
+        const hrefs = JSON.parse(link.dataset.hrefs ?? "[]") as string[];
+        if (hrefs.length === 0) return;
+        event.preventDefault();
+        window.location.href = hrefs[Math.floor(Math.random() * hrefs.length)];
+      });
+    });
+  };
+
+  document.addEventListener("astro:page-load", initRandomPost);
+  initRandomPost();
+</script>

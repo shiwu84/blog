@@ -1,5 +1,6 @@
 ---
 import { getCollection } from "astro:content";
+import FormattedDate from "../../../components/FormattedDate.astro";
 import PageHeader from "../../../components/PageHeader.astro";
 import PostList from "../../../components/PostList.astro";
 import Box from "../../../components/layout/Box.astro";
@@ -16,9 +17,15 @@ export async function getStaticPaths() {
 const { collectionName } = Astro.props;
 const posts = sortByDateDesc((await getCollection("blog")).filter((post) => post.data.collection === collectionName));
 const description = posts.find((post) => post.data.collectionDescription)?.data.collectionDescription ?? PAGE_COPY.collections.description;
+const latest = posts[0]?.data.pubDate;
 ---
 
 <SiteLayout title={`${collectionName} | 专题 | ${SITE_TITLE}`} description={description}>
-  <PageHeader title={collectionName} description={description} count={{ value: posts.length, unit: "篇" }} />
+  <PageHeader title={collectionName} description={description} count={{ value: posts.length, unit: "篇" }}>
+    <Fragment slot="description">
+      {description}
+      {latest && <span class="text-subtle"> · 最近更新 <FormattedDate date={latest} /></span>}
+    </Fragment>
+  </PageHeader>
   <Box><PostList posts={posts} showDescription={false} /></Box>
 </SiteLayout>

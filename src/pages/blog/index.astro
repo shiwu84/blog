@@ -8,7 +8,7 @@ import Box from "../../components/layout/Box.astro";
 import SidebarSection from "../../components/layout/SidebarSection.astro";
 import { PAGE_COPY, SITE_TITLE } from "../../consts";
 import SiteLayout from "../../layouts/SiteLayout.astro";
-import { collectionPath, getCollectionSummaries, getTagCounts, sortByDateDesc, tagPath } from "../../utils/content";
+import { collectionPath, getCollectionSummaries, getTagCounts, sortByDateDesc, tagPath, taxonomyTone } from "../../utils/content";
 import { withBase } from "../../utils/withBase";
 
 const posts = sortByDateDesc(await getCollection("blog"));
@@ -28,8 +28,10 @@ const tags = getTagCounts(posts);
           <ul class="grid gap-2">
             {collections.map(([name, meta]) => (
               <li>
-                <a class="flex items-center justify-between gap-2 text-content no-underline hover:text-accent" href={withBase(collectionPath(name))}>
-                  {name}<Count value={meta.count} unit="篇" />
+                <a class="flex items-center gap-2 text-content no-underline hover:text-accent" href={withBase(collectionPath(name))}>
+                  <span class="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: taxonomyTone(name) }} aria-hidden="true"></span>
+                  <span class="min-w-0">{name}</span>
+                  <Count class="ml-auto" value={meta.count} unit="篇" />
                 </a>
               </li>
             ))}

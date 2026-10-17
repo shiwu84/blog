@@ -26,7 +26,7 @@ Process completed with exit code 255.
 一共就失败了两次：第一次是 Secret 没配完，第二次就是这个 255。
 
 <figure>
-  <img src="/images/deploy/timeline.svg" alt="2026 年 10 月 17 日下午的部署流程：清理 Docker 服务、选定主题、配置 Cloudflare 与 Caddy、两次失败、部署成功" />
+  <img src="/images/deploy/timeline.svg" data-dark-src="timeline-dark.svg" alt="2026 年 10 月 17 日下午的部署流程：清理 Docker 服务、选定主题、配置 Cloudflare 与 Caddy、两次失败、部署成功" />
   <figcaption>图 1：那天下午的流程</figcaption>
 </figure>
 

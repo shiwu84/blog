@@ -1,5 +1,6 @@
 ---
 import { getCollection } from "astro:content";
+import FormattedDate from "../../../components/FormattedDate.astro";
 import PageHeader from "../../../components/PageHeader.astro";
 import PostList from "../../../components/PostList.astro";
 import Box from "../../../components/layout/Box.astro";
@@ -16,9 +17,15 @@ export async function getStaticPaths() {
 const { tagName } = Astro.props;
 const posts = sortByDateDesc((await getCollection("blog")).filter((post) => (post.data.tags ?? []).includes(tagName)));
 const description = `与「${tagName}」相关的文章。`;
+const latest = posts[0]?.data.pubDate;
 ---
 
 <SiteLayout title={`${tagName} | 标签 | ${SITE_TITLE}`} description={description}>
-  <PageHeader title={tagName} description={description} count={{ value: posts.length, unit: "篇" }} />
+  <PageHeader title={tagName} description={description} count={{ value: posts.length, unit: "篇" }}>
+    <Fragment slot="description">
+      {description}
+      {latest && <span class="text-subtle"> · 最近更新 <FormattedDate date={latest} /></span>}
+    </Fragment>
+  </PageHeader>
   <Box><PostList posts={posts} showDescription={false} /></Box>
 </SiteLayout>

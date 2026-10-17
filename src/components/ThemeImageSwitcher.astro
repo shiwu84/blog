@@ -1,0 +1,32 @@
+---
+// 暗色模式配图切换：给 <img> 加 data-dark-src="xxx-dark.svg"（只写文件名），
+// 脚本会按当前主题替换同目录下的文件名。
+---
+
+<script>
+  let observer: MutationObserver | null = null;
+
+  const apply = () => {
+    const isDark = document.documentElement.classList.contains("dark");
+    document.querySelectorAll<HTMLImageElement>("img[data-dark-src]").forEach((image) => {
+      const current = image.getAttribute("src") ?? "";
+      if (!image.dataset.lightSrc) image.dataset.lightSrc = current;
+      const light = image.dataset.lightSrc;
+      const darkName = image.dataset.darkSrc;
+      if (!light || !darkName) return;
+      const dark = light.replace(/[^/]+$/, darkName);
+      const next = isDark ? dark : light;
+      if (image.getAttribute("src") !== next) image.setAttribute("src", next);
+    });
+  };
+
+  const init = () => {
+    apply();
+    if (observer) return;
+    observer = new MutationObserver(apply);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  };
+
+  document.addEventListener("astro:page-load", init);
+  init();
+</script>

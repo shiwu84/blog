@@ -36,6 +36,16 @@ check("标签已生成", blog.includes("部署") && blog.includes("Caddy"));
 const post = await get(`/blog/${POST_SLUG}/`);
 check("文章详情页可访问", post.includes(POST_TITLE) && post.includes("DeepSeek Harness"));
 check("文章包含代码块", post.includes("<pre"));
+check("文章页有自动目录", post.includes('data-toc-link') && post.includes('aria-label="文章目录"'));
+check("文章页有图片灯箱", post.includes("data-lightbox-dialog"));
+check("文章页文末有签名与订阅", post.includes("data-article-footer") && post.includes("RSS 订阅"));
+check("文章页有回到顶部按钮", post.includes("data-back-to-top"));
+check("暗色配图属性存在", post.includes('data-dark-src="timeline-dark.svg"'));
+check("暗色流程图文件存在", (await fetch(`${baseUrl}/images/deploy/timeline-dark.svg`)).ok);
+
+check("首页有精选文章卡", home.includes("data-featured-post"));
+check("首页头像有描边", home.includes("avatar-ring"));
+check("首页页头为毛玻璃", home.includes("backdrop-blur-md"));
 
 const about = await get("/about/");
 check("关于页已个人化", about.includes("我是十五") && about.includes("Rust") && about.includes("github.com/shiwu84"));

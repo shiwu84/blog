@@ -3,6 +3,19 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * 正文衬线字体：Noto Serif SC 的按用字子集（当前站内出现过的字符）。
+ * 没有安装思源宋体的访客也能拿到一致的排版；新增文章后若出现新字，
+ * 会逐字回退到后面的系统字体，需要时可重新生成子集（见 README“视觉”一节）。
+ */
+@font-face {
+  font-family: "Noto Serif SC Web";
+  src: url("../assets/fonts/noto-serif-sc-400-subset.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 @theme {
   --breakpoint-*: initial;
   --breakpoint-sm: 35rem;
@@ -27,7 +40,7 @@
   --color-border: #e1e3e6;
   --color-heading: #17181a;
   --color-content: #45474b;
-  --color-subtle: #74777d;
+  --color-subtle: #63666c;
   --color-link: #232529;
   --color-link-hover: #232529;
   --color-accent: #2b2e33;
@@ -38,7 +51,7 @@
   --color-contrib-4: var(--color-accent);
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
+  --font-serif: "Noto Serif SC Web", "Noto Serif SC", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
   --font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
   --text-label: .75rem;
@@ -54,8 +67,11 @@
   --text-title: 1.375rem;
   --text-title--line-height: 1.3;
   --text-title--font-weight: 700;
-  --text-reading: 1rem;
-  --text-reading--line-height: 1.9;
+  --text-article: clamp(1.5rem, 1.25rem + 1.1vw, 1.875rem);
+  --text-article--line-height: 1.28;
+  --text-article--font-weight: 700;
+  --text-reading: 1.0625rem;
+  --text-reading--line-height: 1.85;
   --text-code: .875rem;
   --text-code--line-height: 1.6;
   --text-nav: .875rem;
@@ -80,7 +96,7 @@
   --color-border: #26282b;
   --color-heading: #ececee;
   --color-content: #c4c5c9;
-  --color-subtle: #8b8d93;
+  --color-subtle: #94969c;
   --color-link: #e4e5e8;
   --color-link-hover: #e4e5e8;
   --color-accent: #e4e5e8;
@@ -164,7 +180,7 @@
     color: var(--color-content);
     font-family: var(--font-sans);
     font-size: var(--text-body);
-    font-weight: 500;
+    font-weight: 400;
     line-height: var(--text-body--line-height);
     /* 画质优先：启用更好的字距与连字渲染。 */
     text-rendering: optimizeLegibility;
@@ -183,6 +199,17 @@
   :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 3px;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-accent) 20%, transparent);
+    color: var(--color-heading);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
   }
 }
 
@@ -219,20 +246,32 @@
 .prose {
   font-family: var(--font-serif);
   font-size: var(--text-reading);
+  font-weight: 400;
   line-height: var(--text-reading--line-height);
 }
 
 .prose :where(h1, h2, h3, h4, h5, h6) {
   font-family: var(--font-sans);
+  text-wrap: balance;
 }
 
 .prose :where(code, pre) {
   font-family: var(--font-mono);
 }
 
-.prose :where(h1) { font-size: 1.25rem; line-height: var(--text-title--line-height); }
-.prose :where(h2) { font-size: var(--text-section); line-height: var(--text-section--line-height); }
-.prose :where(h3) { font-size: var(--text-card); line-height: var(--text-card--line-height); }
+.prose :where(h1) { font-size: var(--text-title); line-height: var(--text-title--line-height); }
+.prose :where(h2) {
+  margin-top: 2.4em;
+  margin-bottom: .85em;
+  font-size: 1.375rem;
+  line-height: 1.4;
+}
+.prose :where(h3) {
+  margin-top: 1.9em;
+  margin-bottom: .65em;
+  font-size: 1.125rem;
+  line-height: 1.5;
+}
 .prose :where(h4, h5, h6) { font-size: var(--text-reading); line-height: var(--text-reading--line-height); }
 
 .prose :where(pre) {
@@ -246,7 +285,7 @@
 
 .prose a {
   font-weight: inherit;
-  text-decoration-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--color-accent) 65%, transparent);
 }
 
 .prose a:hover {
@@ -327,6 +366,7 @@
 .prose figure img {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-box);
+  cursor: zoom-in;
 }
 
 .prose figcaption {
@@ -334,4 +374,28 @@
   text-align: center;
   font-size: var(--text-label);
   color: var(--color-subtle);
+}
+
+/* 卡片：极淡的内高光 + 投影，让白卡从文字雪背景上轻轻浮起来。 */
+.card-sheen {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .6),
+    0 1px 2px rgba(23, 24, 26, .03);
+}
+
+.dark .card-sheen {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .035),
+    0 1px 2px rgba(0, 0, 0, .16);
+}
+
+/* 头像：暗色模式下与背景拉开一点边界。 */
+.avatar-ring {
+  box-shadow:
+    inset 0 0 0 1px rgba(23, 24, 26, .08),
+    0 1px 2px rgba(23, 24, 26, .05);
+}
+
+.dark .avatar-ring {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14);
 }

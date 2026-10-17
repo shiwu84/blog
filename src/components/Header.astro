@@ -11,7 +11,7 @@ const navLinkClass = "group flex items-center gap-1.5 rounded-box px-2.5 py-1.5 
 const navDotClass = "size-1 scale-[.45] rounded-full bg-current opacity-0 transition group-aria-[current=page]:scale-100 group-aria-[current=page]:opacity-100";
 ---
 
-<header data-site-header transition:name="site-header" transition:animate="none" class="group sticky top-0 z-50 border-b border-border bg-surface-alt">
+<header data-site-header transition:name="site-header" transition:animate="none" class="group sticky top-0 z-50 border-b border-border bg-surface-alt/85 backdrop-blur-md backdrop-saturate-150">
   <div class="bar-inner h-bar items-center gap-3">
     <p class="flex min-w-0 flex-1 items-baseline gap-2 truncate">
       <a class="text-section text-heading no-underline transition-colors hover:text-accent" href={withBase("/")}>{SITE_TITLE}</a>
@@ -64,6 +64,10 @@ const navDotClass = "size-1 scale-[.45] rounded-full bg-current opacity-0 transi
 </header>
 
 <style>
+  [data-site-header][data-scrolled] {
+    box-shadow: 0 12px 32px -30px rgba(23, 24, 26, .75);
+  }
+
   /* 菜单展开时，导航项依次淡入上浮；收起时直接淡出。 */
   #mobile-nav ul > li {
     opacity: 0;
@@ -126,6 +130,18 @@ const navDotClass = "size-1 scale-[.45] rounded-full bg-current opacity-0 transi
 
     const syncMenuToViewport = () => setMenuOpen(mobileViewport.matches && readMenuOpen(), false);
 
+    // 滚动后给吸顶栏一点投影，避免和正文糊在一起。
+    let scrollFrame = 0;
+    const syncScrolled = () => {
+      scrollFrame = 0;
+      header?.toggleAttribute("data-scrolled", window.scrollY > 4);
+    };
+    const onScroll = () => {
+      if (!scrollFrame) scrollFrame = requestAnimationFrame(syncScrolled);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    syncScrolled();
+
     menuToggle?.addEventListener("click", () => {
       header?.setAttribute("data-animate", "");
       setMenuOpen(menuToggle.getAttribute("aria-expanded") !== "true");
@@ -173,6 +189,9 @@ const navDotClass = "size-1 scale-[.45] rounded-full bg-current opacity-0 transi
       window.removeEventListener("popstate", onBeforePreparation);
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeydown);
+      window.removeEventListener("scroll", onScroll);
+      if (scrollFrame) cancelAnimationFrame(scrollFrame);
+      scrollFrame = 0;
       mobileViewport.removeEventListener("change", syncMenuToViewport);
       mobileNav?.removeEventListener("click", onMobileNavClick);
     };

@@ -10,6 +10,11 @@ export default defineConfig({
 	site: process.env.SITE_URL ?? SITE_URL,
 	base: process.env.BASE_PATH ?? '/',
 	integrations: [mdx(), sitemap()],
+	// Windows + Node 24 下 localhost 可能只绑定到 IPv6 ::1，浏览器走 127.0.0.1 就会「无法访问」。
+	// 显式绑定回环 IPv4；需要手机/局域网调试时用 `npm run dev -- --host 0.0.0.0` 覆盖。
+	server: {
+		host: '127.0.0.1',
+	},
 	vite: {
 		plugins: [tailwindcss()],
 	},

@@ -1,12 +1,15 @@
 ---
 import { Image } from "astro:assets";
+import type { MarkdownHeading } from "astro";
 import type { CollectionEntry } from "astro:content";
+import ArticleFooter from "../components/ArticleFooter.astro";
 import Badge from "../components/Badge.astro";
 import CommentSection from "../components/CommentSection.astro";
 import FormattedDate from "../components/FormattedDate.astro";
 import Meta from "../components/Meta.astro";
 import MermaidRenderer from "../components/MermaidRenderer.astro";
 import Prose from "../components/Prose.astro";
+import TableOfContents from "../components/TableOfContents.astro";
 import Box from "../components/layout/Box.astro";
 import Cell from "../components/layout/Cell.astro";
 import { collectionPath, estimateReadingMinutes, tagPath } from "../utils/content";
@@ -14,8 +17,32 @@ import { withBase } from "../utils/withBase";
 import SiteLayout from "./SiteLayout.astro";
 
 type BlogPostData = CollectionEntry<"blog">["data"];
-interface Props extends BlogPostData { body?: string; enableComments?: boolean }
-const { title, description, pubDate, updatedDate, heroImage, collection, tags = [], body = "", enableComments = false } = Astro.props;
+type PostLink = { id: string; title: string; pubDate: Date };
+
+interface Props extends BlogPostData {
+  body?: string;
+  headings?: MarkdownHeading[];
+  enableComments?: boolean;
+  prevPost?: PostLink;
+  nextPost?: PostLink;
+  relatedPosts?: CollectionEntry<"blog">[];
+}
+
+const {
+  title,
+  description,
+  pubDate,
+  updatedDate,
+  heroImage,
+  collection,
+  tags = [],
+  body = "",
+  headings = [],
+  enableComments = false,
+  prevPost,
+  nextPost,
+  relatedPosts = [],
+} = Astro.props;
 ---
 
 <SiteLayout title={title} description={description} image={heroImage} type="article">
@@ -32,8 +59,8 @@ const { title, description, pubDate, updatedDate, heroImage, collection, tags = 
           )}
         </ol>
       </nav>
-      <h1 class="mt-1 min-w-0 text-title text-heading">{title}</h1>
-      <p class="mt-1 text-body font-serif">{description}</p>
+      <h1 class="mt-1 min-w-0 text-article text-heading">{title}</h1>
+      <p class="mt-1.5 text-body font-serif">{description}</p>
     </Cell>
     <Cell class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
       {tags.length > 0 && (
@@ -47,7 +74,9 @@ const { title, description, pubDate, updatedDate, heroImage, collection, tags = 
         <span>{estimateReadingMinutes(body)} 分钟</span>
       </Meta>
     </Cell>
+    <TableOfContents headings={headings} variant="inline" />
   </Box>
+  <TableOfContents headings={headings} variant="sidebar" />
   {heroImage && (
     <Box>
       <Image class="w-full" width={840} height={420} src={heroImage} alt={title} />
@@ -58,4 +87,11 @@ const { title, description, pubDate, updatedDate, heroImage, collection, tags = 
   </Prose>
   <MermaidRenderer />
   {enableComments && <CommentSection />}
+  <ArticleFooter
+    pubDate={pubDate}
+    updatedDate={updatedDate}
+    prevPost={prevPost}
+    nextPost={nextPost}
+    relatedPosts={relatedPosts}
+  />
 </SiteLayout>
