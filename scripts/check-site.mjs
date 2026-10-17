@@ -41,7 +41,7 @@ const about = await get("/about/");
 check("关于页已个人化", about.includes("我是十五") && about.includes("Rust") && about.includes("github.com/shiwu84"));
 
 const friends = await get("/friends/");
-check("友链页有空状态提示", friends.includes("还没有添加友链"));
+check("友链页包含 Cocos 社区与阮一峰", friends.includes("Cocos 中文社区") && friends.includes("阮一峰的网络日志") && friends.includes("forum.cocos.org") && friends.includes("ruanyifeng.com"));
 
 const tags = await get("/blog/tags/");
 check("标签页包含「部署」", tags.includes("部署"));
