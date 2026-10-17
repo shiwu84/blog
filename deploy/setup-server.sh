@@ -70,10 +70,17 @@ esac
 
 if [ -n "${DEPLOY_PUBKEY:-}" ]; then
   log "写入部署公钥到 ${DEPLOY_USER}（${DEPLOY_HOME}）"
+  AUTHORIZED_KEYS="${DEPLOY_HOME}/.ssh/authorized_keys"
   install -d -m 700 -o "${DEPLOY_USER}" -g "${DEPLOY_USER}" "${DEPLOY_HOME}/.ssh"
-  printf 'restrict %s\n' "${DEPLOY_PUBKEY}" >> "${DEPLOY_HOME}/.ssh/authorized_keys"
-  chown "${DEPLOY_USER}:${DEPLOY_USER}" "${DEPLOY_HOME}/.ssh/authorized_keys"
-  chmod 600 "${DEPLOY_HOME}/.ssh/authorized_keys"
+  touch "${AUTHORIZED_KEYS}"
+  if grep -qF -- "${DEPLOY_PUBKEY}" "${AUTHORIZED_KEYS}"; then
+    echo "公钥已存在，跳过追加"
+  else
+    printf 'restrict %s\n' "${DEPLOY_PUBKEY}" >> "${AUTHORIZED_KEYS}"
+    echo "公钥已追加"
+  fi
+  chown "${DEPLOY_USER}:${DEPLOY_USER}" "${AUTHORIZED_KEYS}"
+  chmod 600 "${AUTHORIZED_KEYS}"
 else
   echo "未提供 DEPLOY_PUBKEY，稍后请手动把公钥写入 ${DEPLOY_HOME}/.ssh/authorized_keys"
 fi

@@ -32,6 +32,12 @@ blog.shiwu.dev {
 		-Server
 	}
 
+	# 自定义 404：file_server 不会自动使用 404.html，需要在这里显式返回
+	handle_errors {
+		rewrite * /404.html
+		file_server
+	}
+
 	# 可选：如果使用 Cloudflare 代理 + Origin 证书，可以注释掉自动 HTTPS，
 	# 改用下面这行指定 Cloudflare 签发的证书：
 	# tls /etc/caddy/origin.pem /etc/caddy/origin.key
