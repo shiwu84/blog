@@ -118,8 +118,17 @@ sudo systemctl reload caddy
 主 Caddyfile 里应当有类似：
 
 ```caddyfile
+# /etc/caddy/Caddyfile
+{
+	# 可选：ACME 证书通知邮箱
+	email x7y7z84@gmail.com
+}
+
+# 引入 conf.d 下的所有站点配置（目录为空不会报错）
 import /etc/caddy/conf.d/*
 ```
+
+> `import` 的 glob 路径相对主 Caddyfile 所在目录，所以 `import conf.d/*` 与绝对路径写法等价；`conf.d` 里的文件只放站点块，不能再包含全局 `{ ... }` 选项块。
 
 ## 3. Cloudflare 设置
 
