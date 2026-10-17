@@ -11,165 +11,161 @@ GitHub Actions（ubuntu-latest）
       │ rsync over SSH
       ▼
 Ubuntu 24.04 服务器
-  /var/www/blog  ←  Caddy（静态托管 + 自动 HTTPS）
+  站点目录 ← Caddy（静态托管 + 自动 HTTPS）
       ▲
       │ A 记录 / 可选代理
 Cloudflare（DNS + CDN + 边缘证书）
 ```
 
-需要准备：
+支持两种落地方案，按需选择：
 
-| 项目 | 本指南默认值 |
-| --- | --- |
-| GitHub 仓库 | `shiwu84/blog` |
-| 服务器 | Ubuntu 24.04，SSH 端口 22 |
-| 部署用户 | `deploy`（只能写站点目录） |
-| 站点目录 | `/var/www/blog` |
-| 域名 | `blog.shiwu.dev` |
+| | 方案 A（默认，推荐） | 方案 B（全部在 shiwu 用户下） |
+| --- | --- | --- |
+| 登录用户 | `deploy`（脚本自动创建） | `shiwu`（你的 sudo 账号） |
+| 站点目录 | `/var/www/blog` | `/home/shiwu/blog` |
+| GitHub Secrets | `SSH_USER=deploy`，`DEPLOY_PATH=/var/www/blog` | `SSH_USER=shiwu`，`DEPLOY_PATH=/home/shiwu/blog` |
+| 权限风险 | 低：CI 只能写站点目录 | 较高：CI 密钥拥有 shiwu 的权限（含 sudo） |
+
+> 服务器初始化、上传文件都用 `shiwu@服务器IP` 登录，不要用 root（Ubuntu 24.04 默认也禁用 root 登录）。
 
 ---
 
 ## 1. 本地生成部署专用 SSH 密钥
 
-在**你自己的电脑**上执行（不要用日常登录服务器的主密钥，也不要在服务器上生成）：
+在**你自己的电脑**上执行（Windows 自带 OpenSSH，或在 Git Bash 里执行）：
 
-```bash
-ssh-keygen -t ed25519 -C "github-actions-blog" -f ~/.ssh/blog_deploy
+```powershell
+ssh-keygen -t ed25519 -C "github-actions-blog" -f "$env:USERPROFILE\.ssh\blog_deploy" -N ""
 ```
 
-会得到两个文件：
+得到：
 
-- `~/.ssh/blog_deploy`：私钥，稍后填进 GitHub Secrets
-- `~/.ssh/blog_deploy.pub`：公钥，放到服务器 `deploy` 用户
+- 私钥：`~/.ssh/blog_deploy` → 填 GitHub Secrets 的 `SSH_PRIVATE_KEY`
+- 公钥：`~/.ssh/blog_deploy.pub` → 上传到服务器
 
-先确认能用它登录服务器（公钥配好后）：
+## 2. 上传文件并初始化服务器
 
-```bash
-ssh -i ~/.ssh/blog_deploy deploy@<服务器公网IP>
+```powershell
+cd C:\Users\shiwu\Desktop\Blog
+# 使用完整路径，避免终端 PATH 里没有 scp
+& "$env:WINDIR\System32\OpenSSH\scp.exe" -r .\deploy "$env:USERPROFILE\.ssh\blog_deploy.pub" shiwu@<服务器IP>:~/
 ```
 
-## 2. 服务器初始化（一次性）
+然后登录服务器执行初始化（按你选的方案二选一）：
 
-把本目录的 `deploy/` 上传到服务器（或直接在服务器上创建文件），然后执行：
-
-```bash
-# 在服务器上
-sudo DEPLOY_PUBKEY="$(cat ~/.ssh/blog_deploy.pub)" bash setup-server.sh
+```powershell
+ssh shiwu@<服务器IP>
 ```
 
-脚本会：创建 `deploy` 用户 → 建好 `/var/www/blog` → 安装 Caddy → 写入部署公钥 → 配置防火墙 → 启用 Caddy。
-
-> 不想用脚本也可以手动做这几步，核心是：`deploy` 用户对 `/var/www/blog` 有写权限、Caddy 已安装、部署公钥在 `/home/deploy/.ssh/authorized_keys` 里（建议加 `restrict` 前缀）。
-
-## 3. 配置 Caddy
-
-把 [Caddyfile](./Caddyfile) 复制到服务器并重载：
-
 ```bash
-sudo cp Caddyfile /etc/caddy/Caddyfile
-sudo caddy validate --config /etc/caddy/Caddyfile
-sudo systemctl reload caddy
+cd ~/deploy
+
+# 方案 A：独立 deploy 用户 + /var/www/blog
+sudo DEPLOY_PUBKEY="$(cat ~/blog_deploy.pub)" \
+  CADDYFILE_SRC=./Caddyfile bash setup-server.sh
+
+# 方案 B：全部在 shiwu 用户下（你正在用的方案）
+sudo WEB_ROOT=/home/shiwu/blog DEPLOY_USER=shiwu \
+  DEPLOY_PUBKEY="$(cat ~/blog_deploy.pub)" \
+  CADDYFILE_SRC=./Caddyfile bash setup-server.sh
 ```
 
-配置要点（已写在 Caddyfile 里）：静态托管 `/var/www/blog`、gzip/zstd 压缩、`/_astro/*` 长缓存、HTML 不缓存、基础安全响应头。首次访问站点时 Caddy 会自动申请 HTTPS 证书。
+脚本会：创建/确认用户 → 建站点目录 → 安装 Caddy → 写入部署公钥 → 替换 Caddyfile 的 root 路径 → 配置防火墙 → 启用 Caddy。
 
-常用排查命令：
+> 站点目录在 `/home/xxx` 下时，脚本会给家目录加 `o+x`（只允许进入、不允许列目录），否则 Caddy 无法读取静态文件。
+
+验证：
 
 ```bash
-sudo systemctl status caddy
-sudo journalctl -u caddy -f
+systemctl status caddy --no-pager
+curl -I https://blog.shiwu.dev      # Caddy 自动签发证书后返回 200/404
+ssh -i ~/.ssh/blog_deploy <部署用户>@<服务器IP>   # 本地测试部署用户能否登录
 ```
 
-## 4. Cloudflare 设置
+## 3. Cloudflare 设置
 
-1. **DNS → Records → Add record**
-   - Type：`A`
-   - Name：`blog`
-   - IPv4 address：服务器公网 IP
-   - Proxy status：**先选 DNS only（灰云）**，让 Caddy 先成功签发证书
-2. 浏览器访问 `http://blog.shiwu.dev` 确认能打开；再访问 `https://blog.shiwu.dev` 确认证书正常。
-3. 证书签发成功后，可以按需把代理切成 **Proxied（橙云）**：
-   - SSL/TLS → Overview → 加密模式选 **Full (strict)**（Caddy 用的是公信证书，可以直接严格校验）
-   - Edge Certificates → 可开启 **Always Use HTTPS**
-   - 如果切橙云后 Caddy 重新签发证书失败，见文末 FAQ
+1. DNS → Records → Add record：`A`、`blog`、服务器公网 IP，Proxy 先选 **DNS only（灰云）**。
+2. 等 `nslookup blog.shiwu.dev` 返回服务器 IP 后，再让 Caddy 去签发证书。
+3. 证书正常后可切 **Proxied（橙云）**：SSL/TLS → Overview → **Full (strict)**，Edge Certificates 可开 Always Use HTTPS。
+4. 服务器安全组/防火墙放行 22（或自定义 SSH 端口）、80、443。
 
-> SSH 不走 Cloudflare 代理，GitHub Actions 使用服务器公网 IP 连接，因此服务器安全组/防火墙要放行 22（或你的自定义 SSH 端口）、80、443。
+## 4. 配置 GitHub Secrets
 
-## 5. 配置 GitHub Secrets
+仓库 → Settings → Secrets and variables → Actions：
 
-仓库 → **Settings → Secrets and variables → Actions → New repository secret**，添加：
+| Secret | 方案 A | 方案 B |
+| --- | --- | --- |
+| `SSH_HOST` | 服务器公网 IP | 服务器公网 IP |
+| `SSH_USER` | `deploy` | `shiwu` |
+| `SSH_PORT` | `22` | `22` |
+| `SSH_PRIVATE_KEY` | `~/.ssh/blog_deploy` 完整内容 | 同左 |
+| `SSH_KNOWN_HOSTS` | `ssh-keyscan -p 22 <服务器IP>` 的完整输出 | 同左 |
+| `DEPLOY_PATH` | `/var/www/blog` | `/home/shiwu/blog` |
 
-| Secret | 值 |
-| --- | --- |
-| `SSH_HOST` | 服务器公网 IP（不要填 `blog.shiwu.dev`，SSH 不走 CDN） |
-| `SSH_USER` | `deploy` |
-| `SSH_PORT` | `22`（非 22 则填自定义端口） |
-| `SSH_PRIVATE_KEY` | `~/.ssh/blog_deploy` 的**完整内容**（包含 `BEGIN` / `END` 行） |
-| `SSH_KNOWN_HOSTS` | 本机执行 `ssh-keyscan -p 22 <服务器公网IP>` 的完整输出 |
-| `DEPLOY_PATH` | `/var/www/blog` |
+Windows 上生成 `SSH_KNOWN_HOSTS`：
 
-`SSH_KNOWN_HOSTS` 用来固定服务器指纹，防止中间人攻击，示例：
-
-```bash
-ssh-keyscan -p 22 203.0.113.10 > known_hosts.txt
-# 把 known_hosts.txt 的全部内容粘贴到 SSH_KNOWN_HOSTS
+```powershell
+& "$env:WINDIR\System32\OpenSSH\ssh-keyscan.exe" -p 22 <服务器IP>
+# 把输出整段粘贴到 SSH_KNOWN_HOSTS
 ```
 
-## 6. 创建仓库并推送
+## 5. 创建仓库并推送
 
-在 GitHub 上新建**空仓库** `shiwu84/blog`（不要勾选 README / .gitignore / license），然后在本项目目录：
+在 GitHub 新建**空仓库** `shiwu84/blog`（不要勾 README / .gitignore / license），再：
 
-```bash
-git remote add origin https://github.com/shiwu84/blog.git
+```powershell
+cd C:\Users\shiwu\Desktop\Blog
 git push -u origin main
 ```
 
-推送后进入仓库 **Actions** 页：
+推送后 Actions 会自动跑：`Build` → `Deploy to server`。也可以手动触发：Actions → Deploy blog → Run workflow。
 
-- `Build` 会在 `npm ci` → `npm run check` → `npm run build` 后上传 `dist` 制品
-- `Deploy to server` 会用 rsync 把 `dist/` 同步到 `/var/www/blog`（`--delete` 会清理已删除的旧文件）
-- 也可以手动触发：Actions → Deploy blog → Run workflow
+## 6. 验证
 
-## 7. 验证
-
-```bash
+```powershell
 curl -I https://blog.shiwu.dev/
-# 应返回 HTTP/2 200，且带 cache-control / x-content-type-options 等响应头
 ```
 
-本地手动部署（应急用，不依赖 Actions）：
+本地手动部署（应急，不依赖 Actions）：
 
 ```bash
 npm run build
-rsync -az --delete -e "ssh -p 22" ./dist/ deploy@<服务器公网IP>:/var/www/blog/
+rsync -az --delete -e "ssh -p 22" ./dist/ deploy@<服务器IP>:/var/www/blog/
+# 方案 B 换成：./dist/ shiwu@<服务器IP>:/home/shiwu/blog/
 ```
 
-日常发布流程就一句：**改完文章 `git push`**，剩下的全自动。
+日常发布：**改文章 → `git push` → 自动上线**。
 
 ---
 
 ## FAQ / 排错
 
-**Q：Caddy 证书签发失败（`challenge failed` / `timeout`）**
-A：常见原因：80/443 未放行、域名没解析到服务器、Cloudflare 代理 + `Always Use HTTPS` 在 ACME 校验前就重定向。处理顺序：临时切灰云或关闭 Always Use HTTPS → 等 Caddy 签发成功 → 再开橙云；或在 Cloudflare 签发 Origin 证书，Caddy 用 `tls /etc/caddy/origin.pem /etc/caddy/origin.key` 指定证书。
+**Q：`scp` / `ssh` 命令找不到**
+A：Windows 自带 OpenSSH，可用完整路径 `C:\WINDOWS\System32\OpenSSH\scp.exe`；或在「设置 → 应用 → 可选功能」中安装 OpenSSH 客户端，或改用 Git Bash。
+
+**Q：Caddy 证书签发失败（challenge failed / timeout）**
+A：检查 DNS 是否已生效、80/443 是否放行；Cloudflare 橙云 + Always Use HTTPS 可能拦截 ACME，先临时切灰云或关闭 Always Use HTTPS，签发成功后再开。
 
 **Q：Cloudflare 返回 521 / 522**
-A：Caddy 没运行（`systemctl status caddy`）或服务器 443 被防火墙拦截。Cloudflare 代理模式下源站仍需开放 443。
+A：Caddy 没运行（`systemctl status caddy`）或 443 被拦截；橙云模式下源站仍需开放 443。
 
 **Q：Actions 报 `Permission denied (publickey)`**
-A：`SSH_USER`/`SSH_HOST`/`SSH_PORT` 是否正确；`deploy` 用户的 `authorized_keys` 权限应为 600、`.ssh` 为 700；私钥与公钥是否配对。
+A：检查 `SSH_USER` / `SSH_HOST` / `SSH_PORT`；部署用户的 `.ssh` 权限应为 700、`authorized_keys` 为 600；私钥与公钥是否配对。
 
 **Q：Actions 报 `Host key verification failed`**
-A：`SSH_KNOWN_HOSTS` 和实际 IP/端口不一致（用了域名或换过 IP/端口），重新 `ssh-keyscan` 生成。
+A：`SSH_KNOWN_HOSTS` 与实际 IP/端口不一致，重新 `ssh-keyscan` 生成。
 
-**Q：rsync 报 `Permission denied` 写目录失败**
-A：`/var/www/blog` 属主不是 `deploy`：`sudo chown -R deploy:deploy /var/www/blog`。
+**Q：rsync 写入失败 / 权限不足**
+A：确认 `DEPLOY_PATH` 属主是 `SSH_USER`。方案 B 用 `sudo chown -R shiwu:shiwu /home/shiwu/blog`；方案 A 用 `sudo chown -R deploy:deploy /var/www/blog`。
+
+**Q：Caddy 返回 403 / 站点空白（方案 B）**
+A：Caddy 用户（`caddy`）需要能穿过 `/home/shiwu`：`sudo chmod o+x /home/shiwu`；站点目录权限 `chmod 755 /home/shiwu/blog`。脚本已自动处理。
+
+**Q：部署到 `/home/shiwu/blog` 后 Caddyfile 里还是旧路径**
+A：用脚本初始化会自动替换；手动安装 Caddyfile 时记得把 `root * /var/www/blog` 改成 `/home/shiwu/blog`。
 
 **Q：发布后页面样式丢失 / 404**
-A：`BASE_PATH` 必须为 `/`（根域名部署）；确认 Actions 里 `dist/` 同步成功。
+A：`BASE_PATH` 必须为 `/`（根域名部署）；确认 Actions 里 `dist/` 同步到了正确目录。
 
 **Q：更新了但页面还是旧的**
-A：Cloudflare 缓存。HTML 在 Caddy 里已设 `must-revalidate`，若仍异常可在 Cloudflare 控制台 Purge Everything。
-
-**Q：想给交互加安全策略（CSP）**
-A：Caddyfile 里追加 `Content-Security-Policy` 响应头即可；注意 Astro 内联脚本需要 `'unsafe-inline'`，调整后先本地验证。
+A：Cloudflare 缓存。可在控制台 Purge Everything；Caddy 已对 HTML 设 `must-revalidate`。

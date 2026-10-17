@@ -95,7 +95,7 @@ pubDate: 2026-10-17
 ```
 git push main
    → GitHub Actions 构建（.github/workflows/deploy.yml）
-   → rsync dist/ 到服务器 /var/www/blog
+   → rsync dist/ 到服务器站点目录（默认 /var/www/blog，可配置为 /home/shiwu/blog）
    → Caddy 托管静态文件 + 自动 HTTPS
    → Cloudflare CDN / DNS
 ```

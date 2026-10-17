@@ -1,7 +1,10 @@
 # Caddy 配置：/etc/caddy/Caddyfile
 #
 # 域名：blog.shiwu.dev
-# 站点根目录：/var/www/blog（GitHub Actions 通过 rsync 更新）
+# 站点根目录：默认 /var/www/blog
+#   - 如果部署在 shiwu 用户下，把下面 root 行改成 /home/shiwu/blog
+#   - 用 deploy/setup-server.sh 初始化时会自动替换成 WEB_ROOT
+# GitHub Actions 通过 rsync 更新此目录。
 #
 # 用法：
 #   sudo cp Caddyfile /etc/caddy/Caddyfile
