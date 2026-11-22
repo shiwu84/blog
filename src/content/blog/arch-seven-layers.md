@@ -140,7 +140,7 @@ HighlightCandidateColor=#21252b
 HighlightBackgroundColor=#61afef
 ```
 
-**还有个不在这四个里的东西**：系统语言。`/etc/locale.conf` 里如果不是 `zh_CN.UTF-8`，中文一样打不出来。我直到 21 号上午才改。
+**还有一件相关但不同的事**：`/etc/locale.conf`。它不是输入法的前置条件——设了 `GTK_IM_MODULE` / `QT_IM_MODULE` 之后，GTK/Qt 程序走原生模块，跟系统语言关系不大。但走 XIM 的旧程序会挑 locale，`C` / `POSIX` 下输入法直接不工作。我 21 号上午才把它改成 `zh_CN.UTF-8`。
 
 ## 第六层：包管理管不到的地方
 
