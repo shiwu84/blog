@@ -13,7 +13,8 @@ import { sortByDateDesc } from "../utils/content";
 import { withBase } from "../utils/withBase";
 
 const allPosts = sortByDateDesc(await getCollection("blog"));
-const featured = allPosts.find((post) => post.data.featured) ?? allPosts[0];
+// 只有显式标了 featured: true 的文章才走大卡片。没标就全部用列表。
+const featured = allPosts.find((post) => post.data.featured);
 const rest = allPosts
   .filter((post) => post.id !== featured?.id)
   .slice(0, Math.max(0, HOME.recentPostsLimit - (featured ? 1 : 0)));
@@ -38,14 +39,16 @@ const rest = allPosts
       <h2 class="text-section text-heading">最近文章</h2>
       <ArchiveLink />
     </Cell>
-    {featured ? (
-      <FeaturedPost post={featured} label={featured.data.featured ? "精选" : undefined} />
-    ) : (
+    {allPosts.length === 0 ? (
       <Cell>
         <p class="text-body text-subtle">还没有文章。第一篇文章正在路上。</p>
       </Cell>
+    ) : (
+      <>
+        {featured && <FeaturedPost post={featured} label="精选" />}
+        {rest.length > 0 && <PostList posts={rest} showReadingTime={true} />}
+      </>
     )}
-    {rest.length > 0 && <PostList posts={rest} showReadingTime={true} />}
   </Box>
   <GitHubContribute />
 </SiteLayout>
