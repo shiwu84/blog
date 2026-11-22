@@ -50,7 +50,7 @@ root=PARTUUID=262f86ad-74d9-418c-9b54-879492448bcd rootflags=subvol=@ rootfstype
 
 状态栏本来可以用 Waybar——niri 支持 layer-shell，Waybar 跑得起来。是我不喜欢它的样子和配置方式，所以看别的。三个候选：Wayle（仅 AUR）、Quickshell（要自己写 QML）、`ironbar`（官方仓库，GTK4 + TOML，原生 niri 模块）。选了 ironbar。
 
-第一版装上，我发了句 `it's ugly`。第二版发了张截图：
+第一版装上，我回了句 `it's ugly`。当时中文还打不出来，只能敲英文。第二版发了张截图：
 
 > 太丑了，你知道吗，我喜欢 One Dark Pro的主题配色，另外，关于 ironbar 的配置，你可以多看看 GitHub 中其他人是怎么设计的。
 
@@ -113,6 +113,8 @@ HighlightBackgroundColor=#61afef
 ```
 
 图从 `default-dark` 拷过来改色，省得重画箭头。
+
+顺带说一句：输入法装好不等于能打中文。系统语言在 `/etc/locale.conf` 里，我直到 11 月 21 号上午才把它改成 `LANG=zh_CN.UTF-8`。在那之前改东西都是夹着英文说的。
 
 ## 登录层：plymouth、kmscon、ly
 
