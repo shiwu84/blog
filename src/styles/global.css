@@ -70,8 +70,8 @@
   --text-article: clamp(1.5rem, 1.25rem + 1.1vw, 1.875rem);
   --text-article--line-height: 1.28;
   --text-article--font-weight: 700;
-  --text-reading: 1.0625rem;
-  --text-reading--line-height: 1.85;
+  --text-reading: 1.125rem;
+  --text-reading--line-height: 1.8;
   --text-code: .875rem;
   --text-code--line-height: 1.6;
   --text-nav: .875rem;
@@ -263,14 +263,14 @@
 .prose :where(h2) {
   margin-top: 2.4em;
   margin-bottom: .85em;
-  font-size: 1.375rem;
-  line-height: 1.4;
+  font-size: 1.5rem;
+  line-height: 1.35;
 }
 .prose :where(h3) {
   margin-top: 1.9em;
   margin-bottom: .65em;
-  font-size: 1.125rem;
-  line-height: 1.5;
+  font-size: 1.25rem;
+  line-height: 1.45;
 }
 .prose :where(h4, h5, h6) { font-size: var(--text-reading); line-height: var(--text-reading--line-height); }
 
