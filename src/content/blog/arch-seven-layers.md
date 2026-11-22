@@ -35,6 +35,8 @@ flowchart LR
 
 默认的 ext4 挺好用。换 btrfs 的理由有两个：快照，和内置压缩。
 
+性能上没有普遍优势。默认配置下，btrfs 的随机读写和元数据操作比 ext4 慢，原因是 CoW；开了压缩以后，顺序读写和可压缩数据能反超，随机小写仍然吃亏。Phoronix 今年三月的那轮[文件系统测试](https://phoronix.com/review/linux-612-linux-70-btrfs/2)里，btrfs 默认选项就明显慢于 ext4；Fedora 推动 btrfs 做默认文件系统时也写过，[压缩的收益取决于负载和硬件](https://fedoraproject.org/wiki/Changes/BtrfsTransparentCompression)。
+
 快照让每次改配置前都能退回去，缩分区、刷内核、改引导这些操作之前先打一个。压缩（子卷开的是 `zstd:3`）让同样多的文件占更少的盘。两件事不冲突，不需要取舍。
 
 子卷切成四块：
@@ -142,7 +144,7 @@ HighlightCandidateColor=#21252b
 HighlightBackgroundColor=#61afef
 ```
 
-**还有一件相关但不同的事**：`/etc/locale.conf`。它管的是本地化——很多程序读 `LANG` 决定加载哪套翻译（所以中文界面靠它）、日期时间格式、排序规则。对输入法只有一条：走 XIM 的旧程序会挑 locale，`C` / `POSIX` 下输入法不工作；走 GTK/Qt 原生模块的不受影响。我 21 号上午才把它改成 `zh_CN.UTF-8`。
+**还有一件相关但不同的事**：`/etc/locale.conf`。它管的是本地化：很多程序读 `LANG` 决定加载哪套翻译（所以中文界面靠它）、日期时间格式、排序规则。对输入法只有一条：走 XIM 的旧程序会挑 locale，`C` / `POSIX` 下输入法不工作；走 GTK/Qt 原生模块的不受影响。我 21 号上午才把它改成 `zh_CN.UTF-8`。
 
 ## 第六层：包管理管不到的地方
 
