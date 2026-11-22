@@ -201,30 +201,6 @@ ly 的美化是这六天里话说得最重的一段，中间问了四次「你�
 
 两个脚本各追加一次，同名键后者覆盖前者。所以桌面是 One Dark，登录界面是 Catppuccin——中间断了一刀。写这篇的时候才发现。
 
-## 我装了些什么
-
-120 个显式包，加依赖一共 837 个，AUR 27 个。挑有理由的说：
-
-**系统底座**：`linux-zen` + `linux`（两个内核都留，zen 日常用）、`intel-ucode`、`btrfs-progs`、`snapper`、`zram-generator`、`mkinitcpio`、`efibootmgr`、`sof-firmware`（音频固件，笔记本没它没声音）。
-
-**桌面**：`niri`、`ironbar`、`swaync`、`walker` + 15 个 `elephant-*`、`swayidle`、`swaylock-effects`、`awww`、`libdecor`。
-
-**登录层**：`ly`、`kmscon`、`plymouth`。
-
-**终端**：`ghostty`、`zsh` + `zsh-autosuggestions` / `zsh-syntax-highlighting` / `zsh-completions`、`starship`、`eza`、`bat`、`fzf`、`zoxide`、`btop`、`fastfetch`、`tealdeer`、`less`、`man-db`、`nushell`、`yazi`。
-
-**输入法**：`fcitx5`、`fcitx5-configtool`、`fcitx5-gtk`、`fcitx5-qt`、`fcitx5-rime`、`rime-ice-git`。
-
-**开发**：`godot`、`helix`、`jujutsu`、`clang` + `cmake` + `lldb`、`zig`（为了编译 ly）、`shellcheck`、`uv`、`python-gdtoolkit`、`jq`、`fd`、`ripgrep`、`7zip`、`unzip`。
-
-**网络与硬件**：`networkmanager` + `iwd`、`bluez` + `bluez-utils`、`dae`、`localsend`、`ufw`、`power-profiles-daemon`、`brightnessctl`、`nvme-cli`、`playerctl`、`pipewire` 全家（`-alsa` / `-pulse` / `-jack` / `pulse`、`wireplumber`、`gst-plugin-pipewire`）。
-
-**字体与主题**：`maple-mono-nf-cn-unhinted`、`noto-fonts` / `noto-fonts-cjk` / `noto-fonts-emoji`、`terminus-font`、`papirus-icon-theme`、`bibata-cursor-theme`。
-
-**双系统**：`ntfs-3g`、`ntfsprogs`、`xorg-xwayland`、`xwayland-satellite`。
-
-有几个我现在想不起来为什么装：`nushell`、`localsend`、`terminus-font`。先留着。
-
 ## 配到一半，Godot 打不开了
 
 11 月 20 号早上七点零九，跑了次系统更新。九分钟后 Godot 起不来：
